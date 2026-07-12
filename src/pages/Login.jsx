@@ -8,8 +8,8 @@ export default function Login() {
   const toast = useToast()
   const navigate = useNavigate()
 
-  const [email,    setEmail]    = useState('admin@sportsplex.in')
-  const [password, setPassword] = useState('admin123')
+  const [email,    setEmail]    = useState('')
+  const [password, setPassword] = useState('')
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
 
@@ -54,7 +54,7 @@ export default function Login() {
               <input
                 type="email" value={email} required autoFocus
                 onChange={e => setEmail(e.target.value)}
-                placeholder="admin@sportsplex.in"
+                placeholder="Enter your email"
               />
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
@@ -62,7 +62,7 @@ export default function Login() {
               <input
                 type="password" value={password} required
                 onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Enter your password"
               />
             </div>
             <button
