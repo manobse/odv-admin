@@ -1,0 +1,130 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #09090f; --bg2:  #0f0f18; --bg3:  #161621;
+  --surf:    #1c1c28; --surf2: #232333; --surf3: #2a2a3e;
+  --brd:     rgba(255,255,255,0.07);
+  --brd2:    rgba(255,255,255,0.12);
+  --brd3:    rgba(255,255,255,0.20);
+  --tx:      #f0f0f8; --tx2: #9898b8; --tx3: #58587a;
+  --ac:      #7c6fff; --acL: #9d94ff;
+  --acD:     rgba(124,111,255,0.14);
+  --acG:     rgba(124,111,255,0.30);
+  --gr:      #22d26e; --grD: rgba(34,210,110,0.12);
+  --rd:      #ff5757; --rdD: rgba(255,87,87,0.12);
+  --am:      #ffb547; --amD: rgba(255,181,71,0.12);
+  --bl:      #47a3ff; --blD: rgba(71,163,255,0.12);
+  --tl:      #2dd4bf; --tlD: rgba(45,212,191,0.12);
+  --sw: 240px; --th: 60px;
+  --r: 8px; --r2: 12px; --r3: 16px;
+  --sh:  0 4px 24px rgba(0,0,0,.50);
+  --shL: 0 12px 48px rgba(0,0,0,.60);
+  --ff: 'DM Sans', sans-serif; --ffH: 'Syne', sans-serif;
+}
+
+.light {
+  --bg: #f1f1f8; --bg2: #e8e8f4; --bg3: #fff;
+  --surf: #fff; --surf2: #f4f4fc; --surf3: #eaeaf6;
+  --brd: rgba(0,0,0,.07); --brd2: rgba(0,0,0,.10); --brd3: rgba(0,0,0,.18);
+  --tx: #0c0c18; --tx2: #505070; --tx3: #9898b8;
+  --ac: #5d4fe8; --acL: #7a6ef5;
+  --acD: rgba(93,79,232,0.10); --acG: rgba(93,79,232,0.22);
+  --gr: #16a34a; --grD: rgba(22,163,74,0.10);
+  --rd: #dc2626; --rdD: rgba(220,38,38,0.10);
+  --am: #d97706; --amD: rgba(217,119,6,0.10);
+  --bl: #2563eb; --blD: rgba(37,99,235,0.10);
+  --tl: #0d9488; --tlD: rgba(13,148,136,0.10);
+  --sh: 0 4px 24px rgba(0,0,0,.10); --shL: 0 12px 48px rgba(0,0,0,.16);
+}
+
+html { font-size: 16px; }
+body {
+  font-family: var(--ff); background: var(--bg); color: var(--tx);
+  min-height: 100vh; overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background .3s, color .3s;
+}
+h1,h2,h3,h4,h5 { font-family: var(--ffH); font-weight: 700; }
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: var(--ff); border: none; outline: none; }
+
+input, select, textarea {
+  font-family: var(--ff); font-size: 14px; color: var(--tx);
+  background: var(--bg2); border: 1.5px solid var(--brd2);
+  border-radius: var(--r); padding: 10px 14px; outline: none; width: 100%;
+  transition: border-color .18s, box-shadow .18s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--ac); box-shadow: 0 0 0 3px var(--acD);
+}
+input::placeholder, textarea::placeholder { color: var(--tx3); }
+select option { background: var(--bg3); }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surf3); border-radius: 4px; }
+
+@keyframes spin    { to { transform: rotate(360deg); } }
+@keyframes fadeUp  { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+@keyframes modalIn { from { opacity:0; transform:scale(.96) translateY(-8px); } to { opacity:1; transform:none; } }
+@keyframes shimmer { to { background-position: -200% center; } }
+
+/* ── Legacy CSS variable aliases (for backward compat across page files) ── */
+:root {
+  --surface:  var(--surf);
+  --surface2: var(--surf2);
+  --surface3: var(--surf3);
+  --border:   var(--brd);
+  --border2:  var(--brd2);
+  --border3:  var(--brd3);
+  --text:     var(--tx);
+  --text2:    var(--tx2);
+  --text3:    var(--tx3);
+  --accent:   var(--ac);
+  --accentL:  var(--acL);
+  --accentD:  var(--acD);
+  --accentG:  var(--acG);
+  --green:    var(--gr);
+  --greenD:   var(--grD);
+  --red:      var(--rd);
+  --redD:     var(--rdD);
+  --amber:    var(--am);
+  --amberD:   var(--amD);
+  --blue:     var(--bl);
+  --blueD:    var(--blD);
+  --teal:     var(--tl);
+  --tealD:    var(--tlD);
+  --shadow:   var(--sh);
+  --shadowLg: var(--shL);
+  --ffHead:   var(--ffH);
+}
+
+/* ── Backward-compat aliases (old names → new tokens) ── */
+:root, .light {
+  --surface:  var(--surf);
+  --surface2: var(--surf2);
+  --surface3: var(--surf3);
+  --border:   var(--brd);
+  --border2:  var(--brd2);
+  --border3:  var(--brd3);
+  --text:     var(--tx);
+  --text2:    var(--tx2);
+  --text3:    var(--tx3);
+  --accent:   var(--ac);
+  --accentL:  var(--acL);
+  --accentD:  var(--acD);
+  --accentG:  var(--acG);
+  --green:    var(--gr);
+  --greenD:   var(--grD);
+  --red:      var(--rd);
+  --redD:     var(--rdD);
+  --amber:    var(--am);
+  --amberD:   var(--amD);
+  --blue:     var(--bl);
+  --blueD:    var(--blD);
+  --teal:     var(--tl);
+  --tealD:    var(--tlD);
+  --shadow:   var(--sh);
+  --shadowLg: var(--shL);
+  --ffHead:   var(--ffH);
+}
