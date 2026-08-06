@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAsync } from '../hooks/useAsync'
 import { useToast } from '../context/ToastContext'
+import { calculateAge, formatDate } from '../helpers'
 import { playersApi, bookingsApi, sportsApi, courtsApi, chargesApi } from '../api/client'
 import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, InfoBox, Avatar } from '../components/ui'
 import logoImg from '../assets/logo.png'
@@ -32,6 +33,10 @@ export function Players() {
     () => playersApi.list({ limit: 100, ...(search ? { search } : {}) }),
     [search]
   )
+  const playersList = data?.data?.map((item, index) => ({
+    srNo: index + 1,
+    ...item
+  }))
   const { data: sD } = useAsync(() => sportsApi.list({ limit: 50 }))
   const [modal,  setModal]  = useState(null)
   const [form,   setForm]   = useState(EMPTY_PLAYER)
@@ -82,28 +87,31 @@ export function Players() {
 
   // ── Table columns (includes new DOB, Address, Gender) ─────────────────────
   const cols = [
+    { key:'srNo',   label:'S. No',   render: r => <span style={{ fontSize:13 }}>{r.srNo}</span> },
     {
       key: 'player', label: 'Player', render: r => (
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <Avatar name={r.name} size={32} />
           <div>
             <div style={{ fontWeight:500 }}>{r.name}</div>
+            <div style={{ fontSize:12, color:'var(--text2)' }}>{r.nickname}</div>
             <div style={{ fontSize:12, color:'var(--text3)' }}>{r.email}</div>
           </div>
         </div>
       ),
     },
     { key:'phone',   label:'Phone',   render: r => <span style={{ fontSize:13 }}>{r.phone}</span> },
-    { key:'dob',     label:'DOB',     render: r => <span style={{ fontSize:12, color:'var(--text3)' }}>{r.dob || '—'}</span> },
+    { key:'dob',     label:'DOB',     render: r => <span style={{ fontSize:12, color:'var(--text2)' }}>{formatDate(r.dob) || '—'}</span> },
+    { key:'age',     label:'Age',     render: r => <span style={{ fontSize:12, color:'var(--text2)' }}>{calculateAge(r.dob)} Years</span> },
     { key:'gender',  label:'Gender',  render: r => r.gender ? <Badge variant="blue">{r.gender}</Badge> : <span style={{ color:'var(--text3)' }}>—</span> },
-    { key:'address', label:'Address', render: r => <span style={{ fontSize:12, color:'var(--text3)', maxWidth:160, display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.address || '—'}</span> },
+    // { key:'address', label:'Address', render: r => <span style={{ fontSize:12, color:'var(--text3)', maxWidth:160, display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.address || '—'}</span> },
     {
       key: 'sport', label: 'Sport', render: r => {
         const sp = typeof r.primarySport === 'object' ? r.primarySport : sports.find(x => x._id === r.primarySport)
         return <span style={{ color: sp?.color, fontSize:13 }}>{sp?.icon} {sp?.name || '—'}</span>
       },
     },
-    { key:'status',  label:'Status',  render: r => <Badge variant={r.active !== false ? 'green' : 'red'}>{r.active !== false ? 'Active' : 'Inactive'}</Badge> },
+    // { key:'status',  label:'Status',  render: r => <Badge variant={r.active !== false ? 'green' : 'red'}>{r.active !== false ? 'Active' : 'Inactive'}</Badge> },
     { key:'actions', label:'',        render: r => <Btn variant="ghost" size="xs" onClick={() => openEdit(r)}>Edit</Btn> },
   ]
 
@@ -120,7 +128,7 @@ export function Players() {
           style={{ maxWidth:340 }}
         />
       </div>
-      <Tbl cols={cols} rows={data?.data || []} loading={loading} />
+      <Tbl cols={cols} rows={playersList || []} loading={loading} />
 
       {/* ── Add / Edit Player Modal ── */}
       {modal && (
@@ -138,9 +146,14 @@ export function Players() {
           {/* ── Basic Info ── */}
           <div style={{ fontSize:12, fontWeight:600, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>Basic Information</div>
 
-          <FG label="Full Name *">
-            <input value={form.name} onChange={e => p({ name: e.target.value })} placeholder="Player name" autoFocus />
-          </FG>
+          <FRow>
+            <FG label="Full Name *">
+              <input value={form.name} onChange={e => p({ name: e.target.value })} placeholder="Player name" autoFocus />
+            </FG>
+            <FG label="Nick Name">
+              <input value={form.nickname} onChange={e => p({ nickname: e.target.value })} placeholder="Player nick name (Optional)" />
+            </FG>
+          </FRow>
 
           <FRow>
             <FG label="Phone *">
@@ -267,7 +280,7 @@ export function Bookings() {
   })
   const p = f => setForm(prev => ({ ...prev, ...f }))
 
-  const players    = pD?.data || []
+  const players    = pD?.data.sort((a, b) => a.name.localeCompare(b.name)) || []
   const sports     = (sD?.data || []).filter(x => x.active)
   const allCourts  = coD?.data || []
   const allCharges = chD?.data || []
@@ -282,7 +295,7 @@ export function Bookings() {
 
   function resetForm() {
     setForm({
-      player:'', sport:'', court:'', charge:'',
+      player:'', sport:sports[0]?._id, court: allCourts[0]?._id, charge:'',
       date: today(), timeFrom:'08:00', timeTo:'09:00',
       discount:0, discountType:'flat',
       paymentMode: 'Cash',
@@ -310,21 +323,21 @@ export function Bookings() {
       key: 'sport', label: 'Sport / Court', render: r => (
         <div>
           <div style={{ fontSize:13 }}>{r.sport?.icon} {r.sport?.name}</div>
-          <div style={{ fontSize:11, color:'var(--text3)' }}>{r.court?.name}</div>
+          <div style={{ fontSize:11, color:'var(--text2)' }}>{r.court?.name}</div>
         </div>
       ),
     },
     {
       key: 'date', label: 'Date & Time', render: r => (
         <div>
-          <div style={{ fontSize:13 }}>{r.date}</div>
-          <div style={{ fontSize:11, color:'var(--text3)' }}>{r.timeFrom} – {r.timeTo}</div>
+          <div style={{ fontSize:13 }}>{formatDate(r.date)}</div>
+          <div style={{ fontSize:11, color:'var(--text2)' }}>{r.timeFrom} – {r.timeTo}</div>
         </div>
       ),
     },
     { key:'total',       label:'Amount',  render: r => <strong>{fmt(r.totalAmount)}</strong> },
     {
-      key: 'paymentMode', label: 'Payment', render: r => {
+      key: 'paymentMode', label: 'Payment Mode', render: r => {
         const colors = { Cash:'blue', UPI:'teal', Card:'accent', 'Bank Transfer':'amber' }
         return r.paymentMode
           ? <Badge variant={colors[r.paymentMode] || 'default'}>{r.paymentMode}</Badge>
@@ -362,7 +375,7 @@ export function Bookings() {
           <FG label="Player *">
             <select value={form.player} onChange={e => p({ player: e.target.value })}>
               <option value="">Select player…</option>
-              {players.map(pl => <option key={pl._id} value={pl._id}>{pl.name} — {pl.phone}</option>)}
+              {players.map(pl => <option key={pl._id} value={pl._id}>{pl.name} {pl.nickname ? `(${pl.nickname})` : ""} — {pl.phone}</option>)}
             </select>
           </FG>
 

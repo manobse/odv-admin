@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useAsync } from '../hooks/useAsync'
 import { useToast } from '../context/ToastContext'
+import { formatDate } from '../helpers'
 import { incomeApi, expensesApi, categoriesApi } from '../api/client'
 import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, StatCard, Tabs } from '../components/ui'
 
 const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN')
 const today = () => new Date().toISOString().slice(0, 10)
 const thisMonth = () => new Date().toISOString().slice(0, 7)
+
+const PAYMENT_MODES = ['Cash', 'UPI', 'Card', 'Bank Transfer']
 
 /* ══════════════════════════════ INCOME ════════════════════════════════════ */
 export function Income() {
@@ -38,11 +41,19 @@ export function Income() {
   }
 
   const cols = [
-    { key:'date',        label:'Date',        render: r => <span style={{ fontSize:13, color:'var(--text3)' }}>{r.date}</span> },
+    { key:'date',        label:'Date',        render: r => <span style={{ fontSize:13, color:'var(--text3)' }}>{formatDate(r.date)}</span> },
     { key:'category',    label:'Category',    render: r => <Badge variant="green">{r.category?.name || '—'}</Badge> },
     { key:'description', label:'Description', render: r => <span style={{ fontSize:13 }}>{r.description}</span> },
     { key:'reference',   label:'Ref',         render: r => <code style={{ fontSize:12, color:'var(--accent)' }}>{r.reference || '—'}</code> },
     { key:'amount',      label:'Amount',      render: r => <strong style={{ color:'var(--green)' }}>{fmt(r.amount)}</strong> },
+    {
+      key: 'paymentMode', label: 'Payment Mode', render: r => {
+        const colors = { Cash:'blue', UPI:'teal', Card:'accent', 'Bank Transfer':'amber' }
+        return r.paymentMode
+          ? <Badge variant={colors[r.paymentMode] || 'default'}>{r.paymentMode}</Badge>
+          : <span style={{ color:'var(--text3)' }}>—</span>
+      },
+    },
     { key:'del',         label:'',            render: r => <Btn variant="danger" size="xs" onClick={() => del(r._id)} style={{ padding:'4px 8px' }}>🗑</Btn> },
   ]
 
@@ -70,8 +81,23 @@ export function Income() {
               </select>
             </FG>
           </FRow>
-          <FG label="Amount (₹)"><input type="number" value={form.amount} onChange={e => p({ amount: e.target.value })} min="0" placeholder="0" autoFocus /></FG>
-          <FG label="Description"><input value={form.description} onChange={e => p({ description: e.target.value })} placeholder="Description of income" /></FG>
+          <FRow>
+            <FG label="Amount (₹)"><input type="number" value={form.amount} onChange={e => p({ amount: e.target.value })} min="0" placeholder="0" autoFocus /></FG>
+            <FG label="Mode of Payment *">
+              <select value={form.paymentMode} onChange={e => p({ paymentMode: e.target.value })}>
+                {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </FG>
+          </FRow>
+          <FG label="Description">
+            <textarea
+              value={form.description}
+              onChange={e => p({ description: e.target.value })}
+              placeholder="Description of income"
+              rows={3}
+              style={{ resize:'vertical' }}
+            />
+          </FG>
         </Modal>
       )}
     </div>
@@ -108,11 +134,19 @@ export function Expenses() {
   }
 
   const cols = [
-    { key:'date',        label:'Date',        render: r => <span style={{ fontSize:13, color:'var(--text3)' }}>{r.date}</span> },
+    { key:'date',        label:'Date',        render: r => <span style={{ fontSize:13, color:'var(--text3)' }}>{formatDate(r.date)}</span> },
     { key:'category',    label:'Category',    render: r => <Badge variant="red">{r.category?.name || '—'}</Badge> },
     { key:'description', label:'Description', render: r => <span style={{ fontSize:13 }}>{r.description}</span> },
     { key:'reference',   label:'Ref',         render: r => <code style={{ fontSize:12, color:'var(--text3)' }}>{r.reference || '—'}</code> },
     { key:'amount',      label:'Amount',      render: r => <strong style={{ color:'var(--red)' }}>{fmt(r.amount)}</strong> },
+    {
+      key: 'paymentMode', label: 'Payment Mode', render: r => {
+        const colors = { Cash:'blue', UPI:'teal', Card:'accent', 'Bank Transfer':'amber' }
+        return r.paymentMode
+          ? <Badge variant={colors[r.paymentMode] || 'default'}>{r.paymentMode}</Badge>
+          : <span style={{ color:'var(--text3)' }}>—</span>
+      },
+    },
     { key:'del',         label:'',            render: r => <Btn variant="danger" size="xs" onClick={() => del(r._id)} style={{ padding:'4px 8px' }}>🗑</Btn> },
   ]
 
@@ -140,8 +174,23 @@ export function Expenses() {
               </select>
             </FG>
           </FRow>
-          <FG label="Amount (₹)"><input type="number" value={form.amount} onChange={e => p({ amount: e.target.value })} min="0" placeholder="0" autoFocus /></FG>
-          <FG label="Description"><input value={form.description} onChange={e => p({ description: e.target.value })} placeholder="What was this expense for?" /></FG>
+          <FRow>
+            <FG label="Amount (₹)"><input type="number" value={form.amount} onChange={e => p({ amount: e.target.value })} min="0" placeholder="0" autoFocus /></FG>
+            <FG label="Mode of Payment *">
+              <select value={form.paymentMode} onChange={e => p({ paymentMode: e.target.value })}>
+                {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </FG>
+          </FRow>
+          <FG label="Description">
+            <textarea
+              value={form.description}
+              onChange={e => p({ description: e.target.value })}
+              placeholder="What was this expense for?"
+              rows={3}
+              style={{ resize:'vertical' }}
+            />
+          </FG>
         </Modal>
       )}
     </div>

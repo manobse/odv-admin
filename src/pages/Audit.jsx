@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatDateTime } from '../helpers'
 import { useAsync } from '../hooks/useAsync'
 import { auditApi } from '../api/client'
 import { Spinner, Badge, PageHeader } from '../components/ui'
@@ -56,7 +57,7 @@ export default function Audit() {
                   <div style={{ fontSize:14, fontWeight:500, marginBottom:4 }}>{log.action}</div>
                   <div style={{ fontSize:12, color:'var(--text3)' }}>
                     <span style={{ marginRight:12 }}>📦 {log.module}</span>
-                    <span>{new Date(log.createdAt).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+                    <span>{formatDateTime(log.createdAt)}</span>
                     {log.ip && <span style={{ marginLeft:12 }}>🌐 {log.ip}</span>}
                   </div>
                 </div>
