@@ -101,8 +101,8 @@ export function Players() {
       ),
     },
     { key:'phone',   label:'Phone',   render: r => <span style={{ fontSize:13 }}>{r.phone}</span> },
-    // { key:'dob',     label:'DOB',     render: r => <span style={{ fontSize:12, color:'var(--text2)' }}>{formatDate(r.dob) || '—'}</span> },
-    { key:'age',     label:'Age',     render: r => <span style={{ fontSize:12, color:'var(--text2)' }}>{calculateAge(r.dob)} Years</span> },
+    { key:'dob',     label:'DOB',     render: r => <span style={{ fontSize:12, color:'var(--text2)' }}>{formatDate(r.dob)}</span> },
+    { key:'age',     label:'Age',     render: r => <span style={{ fontSize:12, color:'var(--text2)' }}>{calculateAge(r.dob)}</span> },
     { key:'gender',  label:'Gender',  render: r => r.gender ? <Badge variant="blue">{r.gender}</Badge> : <span style={{ color:'var(--text3)' }}>—</span> },
     // { key:'address', label:'Address', render: r => <span style={{ fontSize:12, color:'var(--text3)', maxWidth:160, display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.address || '—'}</span> },
     {
