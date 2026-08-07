@@ -275,7 +275,7 @@ export function Bookings() {
     player:'', sport:'', court:'', charge:'',
     date: today(), timeFrom:'08:00', timeTo:'09:00',
     discount:0, discountType:'flat',
-    paymentMode: 'Cash',
+    paymentMode: 'UPI',
     notes:'',
   })
   const p = f => setForm(prev => ({ ...prev, ...f }))
@@ -298,7 +298,7 @@ export function Bookings() {
       player:'', sport:sports[0]?._id, court: allCourts[0]?._id, charge:'',
       date: today(), timeFrom:'08:00', timeTo:'09:00',
       discount:0, discountType:'flat',
-      paymentMode: 'Cash',
+      paymentMode: 'UPI',
       notes:'',
     })
   }
