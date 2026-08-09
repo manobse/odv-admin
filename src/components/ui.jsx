@@ -174,6 +174,84 @@ export function Tbl({ cols, rows=[], loading=false, empty='No records found' }) 
   )
 }
 
+// ── Pagination ────────────────────────────────────────────────────────────────
+function pageNumbers(page, totalPages) {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1)
+  const set = new Set([1, 2, totalPages - 1, totalPages, page - 1, page, page + 1])
+  const nums = [...set].filter(n => n >= 1 && n <= totalPages).sort((a, b) => a - b)
+  const out = []
+  let prev = 0
+  for (const n of nums) {
+    if (prev && n - prev > 1) out.push('…')
+    out.push(n)
+    prev = n
+  }
+  return out
+}
+
+export function Pagination({
+  page, limit, totalRecords, totalPages,
+  hasNextPage, hasPreviousPage,
+  onPageChange, onLimitChange,
+  limitOptions = [25, 50, 100, 200],
+}) {
+  if (!totalRecords) return null
+  const from = (page - 1) * limit + 1
+  const to = Math.min(page * limit, totalRecords)
+
+  return (
+    <div className="sp-pag" style={{ display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:12, marginTop:16 }}>
+      <div style={{ fontSize:13, color:'var(--tx3)' }}>
+        Showing {from}–{to} of {totalRecords}
+      </div>
+
+      <div className="sp-pag-controls" style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+        <Btn variant="ghost" size="sm" disabled={!hasPreviousPage} onClick={() => onPageChange(page - 1)}>‹ Previous</Btn>
+        <div className="sp-pag-nums" style={{ display:'flex', gap:4 }}>
+          {pageNumbers(page, totalPages).map((n, i) => n === '…'
+            ? <span key={`e${i}`} style={{ padding:'0 4px', color:'var(--tx3)', fontSize:13 }}>…</span>
+            : (
+              <button
+                key={n}
+                onClick={() => onPageChange(n)}
+                style={{
+                  minWidth:30, height:30, padding:'0 6px', borderRadius:'var(--r)',
+                  border:'1px solid var(--brd2)',
+                  background: n === page ? 'var(--ac)' : 'transparent',
+                  color: n === page ? '#fff' : 'var(--tx2)',
+                  fontSize:13, fontWeight:500, cursor:'pointer',
+                }}
+              >
+                {n}
+              </button>
+            )
+          )}
+        </div>
+        <Btn variant="ghost" size="sm" disabled={!hasNextPage} onClick={() => onPageChange(page + 1)}>Next ›</Btn>
+      </div>
+
+      <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'var(--tx3)' }}>
+        Rows per page:
+        <select
+          value={limit}
+          onChange={e => onLimitChange(Number(e.target.value))}
+          style={{ width:'auto', padding:'5px 8px' }}
+        >
+          {limitOptions.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </div>
+
+      <style>{`
+        @media (max-width:640px) {
+          .sp-pag { flex-direction:column; align-items:stretch; text-align:center; }
+          .sp-pag-controls { justify-content:center; }
+          .sp-pag-nums { display:none; }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 // ── PageHeader ────────────────────────────────────────────────────────────────
 export function PageHeader({ title, sub, action }) {
   return (

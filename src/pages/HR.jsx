@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAsync } from '../hooks/useAsync'
 import { useToast } from '../context/ToastContext'
 import { staffApi, payrollApi } from '../api/client'
-import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, StatCard, Avatar } from '../components/ui'
+import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, StatCard, Avatar, Pagination } from '../components/ui'
 
 const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN')
 const today = () => new Date().toISOString().slice(0, 10)
@@ -117,13 +117,28 @@ export function Payroll() {
   const [payingId,   setPayingId]   = useState(null)
   const [slipLoad,   setSlipLoad]   = useState(false)
 
+  const [page,  setPage]  = useState(1)
+  const [limit, setLimit] = useState(50)
+  const { data: paidD, loading: paidLoading, reload: reloadPaid } = useAsync(
+    () => payrollApi.list({ status: 'Paid', page, limit }),
+    [page, limit]
+  )
+
   const all    = data?.data || []
   const unpaid = all.filter(p => p.status === 'Unpaid')
-  const paid   = all.filter(p => p.status === 'Paid')
+  // Full-dataset (not just current page) paid records, for the stat cards below —
+  // the paginated `paid` array only holds the current page's rows for the History table.
+  const paidForStats = all.filter(p => p.status === 'Paid')
+  const paid   = paidD?.data || []
+  const paidPg = paidD?.pagination
 
   async function markPaid(id) {
     setPayingId(id)
-    try { await payrollApi.pay(id); toast('Payment recorded — expense auto-created', 'success'); reload() }
+    try {
+      await payrollApi.pay(id)
+      toast('Payment recorded — expense auto-created', 'success')
+      reload(); reloadPaid()
+    }
     catch (e) { toast(e.message, 'error') }
     finally { setPayingId(null) }
   }
@@ -181,19 +196,28 @@ export function Payroll() {
       />
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))', gap:14, marginBottom:20 }}>
         <StatCard label="Pending Payroll" value={fmt(unpaid.reduce((a,b) => a+b.netPay, 0))} color="var(--amber)" />
-        <StatCard label="Total Paid"      value={fmt(paid.reduce((a,b) => a+b.netPay, 0))}   color="var(--green)" />
+        <StatCard label="Total Paid"      value={fmt(paidForStats.reduce((a,b) => a+b.netPay, 0))}   color="var(--green)" />
         <StatCard label="Pending Count"   value={unpaid.length} />
         <StatCard label="Staff Members"   value={[...new Set(all.map(p => p.staff?._id))].filter(Boolean).length} />
       </div>
 
-      {loading ? <Spinner center /> : <>
-        {unpaid.length > 0 && <>
+      {loading ? <Spinner center /> : (
+        unpaid.length > 0 && <>
           <div style={{ fontFamily:'var(--ffH)', fontWeight:600, fontSize:15, color:'var(--amber)', marginBottom:10 }}>⏳ Pending Payment ({unpaid.length})</div>
           <div style={{ marginBottom:22 }}><Tbl cols={unpaidCols} rows={unpaid} /></div>
-        </>}
-        <div style={{ fontFamily:'var(--ffH)', fontWeight:600, fontSize:15, marginBottom:10 }}>✅ Payment History</div>
-        <Tbl cols={paidCols} rows={paid} empty="No payments recorded yet" />
-      </>}
+        </>
+      )}
+      <div style={{ fontFamily:'var(--ffH)', fontWeight:600, fontSize:15, marginBottom:10 }}>✅ Payment History</div>
+      <Tbl cols={paidCols} rows={paid} loading={paidLoading} empty="No payments recorded yet" />
+      {paidPg && (
+        <Pagination
+          page={paidPg.page} limit={paidPg.limit}
+          totalRecords={paidPg.totalRecords} totalPages={paidPg.totalPages}
+          hasNextPage={paidPg.hasNextPage} hasPreviousPage={paidPg.hasPreviousPage}
+          onPageChange={setPage}
+          onLimitChange={l => { setLimit(l); setPage(1) }}
+        />
+      )}
 
       {slipLoad && <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999 }}><Spinner size={36} /></div>}
 

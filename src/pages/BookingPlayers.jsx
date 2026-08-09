@@ -3,7 +3,7 @@ import { useAsync } from '../hooks/useAsync'
 import { useToast } from '../context/ToastContext'
 import { calculateAge, formatDate } from '../helpers'
 import { playersApi, bookingsApi, sportsApi, courtsApi, chargesApi } from '../api/client'
-import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, InfoBox, Avatar } from '../components/ui'
+import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, InfoBox, Avatar, Pagination } from '../components/ui'
 import logoImg from '../assets/logo.png'
 
 const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN')
@@ -29,19 +29,26 @@ const EMPTY_PLAYER = {
 export function Players() {
   const toast = useToast()
   const [search, setSearch] = useState('')
+  const [page,   setPage]   = useState(1)
+  const [limit,  setLimit]  = useState(50)
   const { data, loading, reload } = useAsync(
-    () => playersApi.list({ limit: 100, ...(search ? { search } : {}) }),
-    [search]
+    () => playersApi.list({ page, limit, ...(search ? { search } : {}) }),
+    [search, page, limit]
   )
+  const pg = data?.pagination
   const playersList = data?.data?.map((item, index) => ({
-    srNo: index + 1,
+    srNo: (page - 1) * limit + index + 1,
     ...item
   }))
+
   const { data: sD } = useAsync(() => sportsApi.list({ limit: 50 }))
   const [modal,  setModal]  = useState(null)
   const [form,   setForm]   = useState(EMPTY_PLAYER)
   const [saving, setSaving] = useState(false)
   const sports = sD?.data || []
+
+  function changeSearch(v) { setSearch(v); setPage(1) }
+  function changeLimit(l)  { setLimit(l); setPage(1) }
 
   // Top-level field updater
   const p = f => setForm(prev => ({ ...prev, ...f }))
@@ -123,12 +130,24 @@ export function Players() {
       />
       <div style={{ marginBottom:18 }}>
         <input
-          value={search} onChange={e => setSearch(e.target.value)}
+          value={search} onChange={e => changeSearch(e.target.value)}
           placeholder="🔍 Search by name, phone or email…"
           style={{ maxWidth:340 }}
         />
       </div>
-      <Tbl cols={cols} rows={playersList || []} loading={loading} />
+      <Tbl
+        cols={cols} rows={playersList || []} loading={loading}
+        empty={search ? 'No matching players found.' : 'No players found.'}
+      />
+      {pg && (
+        <Pagination
+          page={pg.page} limit={pg.limit}
+          totalRecords={pg.totalRecords} totalPages={pg.totalPages}
+          hasNextPage={pg.hasNextPage} hasPreviousPage={pg.hasPreviousPage}
+          onPageChange={setPage}
+          onLimitChange={changeLimit}
+        />
+      )}
 
       {/* ── Add / Edit Player Modal ── */}
       {modal && (
@@ -263,7 +282,9 @@ export function Players() {
 /* ══════════════════════════════ BOOKINGS ══════════════════════════════════ */
 export function Bookings() {
   const toast = useToast()
-  const { data, loading, reload } = useAsync(() => bookingsApi.list({ limit: 50 }))
+  const [page,  setPage]  = useState(1)
+  const [limit, setLimit] = useState(50)
+  const { data, loading, reload } = useAsync(() => bookingsApi.list({ page, limit }), [page, limit])
   const { data: pD  } = useAsync(() => playersApi.list({ limit: 200 }))
   const { data: sD  } = useAsync(() => sportsApi.list({ limit: 50 }))
   const { data: coD } = useAsync(() => courtsApi.list({ limit: 100 }))
@@ -359,6 +380,15 @@ export function Bookings() {
         }
       />
       <Tbl cols={cols} rows={data?.data || []} loading={loading} />
+      {data?.pagination && (
+        <Pagination
+          page={data.pagination.page} limit={data.pagination.limit}
+          totalRecords={data.pagination.totalRecords} totalPages={data.pagination.totalPages}
+          hasNextPage={data.pagination.hasNextPage} hasPreviousPage={data.pagination.hasPreviousPage}
+          onPageChange={setPage}
+          onLimitChange={l => { setLimit(l); setPage(1) }}
+        />
+      )}
 
       {/* ── New Booking Modal ── */}
       {modal && (
