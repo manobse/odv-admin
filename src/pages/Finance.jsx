@@ -3,7 +3,7 @@ import { useAsync } from '../hooks/useAsync'
 import { useToast } from '../context/ToastContext'
 import { formatDate } from '../helpers'
 import { incomeApi, expensesApi, categoriesApi } from '../api/client'
-import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, StatCard, Tabs } from '../components/ui'
+import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, StatCard, Tabs, Pagination } from '../components/ui'
 
 const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN')
 const today = () => new Date().toISOString().slice(0, 10)
@@ -14,14 +14,16 @@ const PAYMENT_MODES = ['Cash', 'UPI', 'Card', 'Bank Transfer']
 /* ══════════════════════════════ INCOME ════════════════════════════════════ */
 export function Income() {
   const toast = useToast()
-  const { data, loading, reload } = useAsync(() => incomeApi.list({ limit: 100 }))
+  const [page,  setPage]  = useState(1)
+  const [limit, setLimit] = useState(50)
+  const { data, loading, reload } = useAsync(() => incomeApi.list({ page, limit }), [page, limit])
   const { data: cD } = useAsync(() => categoriesApi.list({ type: 'income', limit: 50 }))
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ date: today(), category: '', amount: '1000', description: '', paymentMode: 'UPI' })
   const [saving, setSaving] = useState(false)
   const cats = cD?.data || []
   const rows = data?.data || []
-  const monthTotal = rows.filter(r => r.date?.startsWith(thisMonth())).reduce((a, b) => a + b.amount, 0)
+  const { data: mD } = useAsync(() => incomeApi.list({ dateFrom: `${thisMonth()}-01`, dateTo: `${thisMonth()}-31` }))
   const p = f => setForm(prev => ({ ...prev, ...f }))
 
   function resetForm() {
@@ -46,8 +48,12 @@ export function Income() {
 
   async function del(id) {
     if (!confirm('Delete this income entry?')) return
-    try { await incomeApi.del(id); toast('Deleted', 'success'); reload() }
-    catch (e) { toast(e.message, 'error') }
+    try {
+      await incomeApi.del(id)
+      toast('Deleted', 'success')
+      if (rows.length === 1 && page > 1) setPage(page - 1)
+      else reload()
+    } catch (e) { toast(e.message, 'error') }
   }
 
   const cols = [
@@ -74,10 +80,19 @@ export function Income() {
       />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(170px,1fr))', gap: 14, marginBottom: 18 }}>
         <StatCard label="Total Income" value={fmt(data?.totalAmount || 0)} color="var(--green)" />
-        <StatCard label="This Month" value={fmt(monthTotal)} color="var(--teal)" />
-        <StatCard label="Total Entries" value={data?.total || 0} />
+        <StatCard label="This Month" value={fmt(mD?.totalAmount || 0)} color="var(--teal)" />
+        <StatCard label="Total Entries" value={data?.pagination?.totalRecords || 0} />
       </div>
       <Tbl cols={cols} rows={rows} loading={loading} empty="No income entries yet" />
+      {data?.pagination && (
+        <Pagination
+          page={data.pagination.page} limit={data.pagination.limit}
+          totalRecords={data.pagination.totalRecords} totalPages={data.pagination.totalPages}
+          hasNextPage={data.pagination.hasNextPage} hasPreviousPage={data.pagination.hasPreviousPage}
+          onPageChange={setPage}
+          onLimitChange={l => { setLimit(l); setPage(1) }}
+        />
+      )}
 
       {modal && (
         <Modal title="Add Income Entry" onClose={() => setModal(false)}
@@ -117,14 +132,16 @@ export function Income() {
 /* ══════════════════════════════ EXPENSES ══════════════════════════════════ */
 export function Expenses() {
   const toast = useToast()
-  const { data, loading, reload } = useAsync(() => expensesApi.list({ limit: 100 }))
+  const [page,  setPage]  = useState(1)
+  const [limit, setLimit] = useState(50)
+  const { data, loading, reload } = useAsync(() => expensesApi.list({ page, limit }), [page, limit])
   const { data: cD } = useAsync(() => categoriesApi.list({ type: 'expense', limit: 50 }))
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ date: today(), category: '', amount: '', description: '', paymentMode: 'UPI' })
   const [saving, setSaving] = useState(false)
   const cats = cD?.data || []
   const rows = data?.data || []
-  const monthTotal = rows.filter(r => r.date?.startsWith(thisMonth())).reduce((a, b) => a + b.amount, 0)
+  const { data: mD } = useAsync(() => expensesApi.list({ dateFrom: `${thisMonth()}-01`, dateTo: `${thisMonth()}-31` }))
   const p = f => setForm(prev => ({ ...prev, ...f }))
 
   function resetForm() {
@@ -149,8 +166,12 @@ export function Expenses() {
 
   async function del(id) {
     if (!confirm('Delete this expense entry?')) return
-    try { await expensesApi.del(id); toast('Deleted', 'success'); reload() }
-    catch (e) { toast(e.message, 'error') }
+    try {
+      await expensesApi.del(id)
+      toast('Deleted', 'success')
+      if (rows.length === 1 && page > 1) setPage(page - 1)
+      else reload()
+    } catch (e) { toast(e.message, 'error') }
   }
 
   const cols = [
@@ -177,10 +198,19 @@ export function Expenses() {
       />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(170px,1fr))', gap: 14, marginBottom: 18 }}>
         <StatCard label="Total Expenses" value={fmt(data?.totalAmount || 0)} color="var(--red)" />
-        <StatCard label="This Month" value={fmt(monthTotal)} color="var(--amber)" />
-        <StatCard label="Total Entries" value={data?.total || 0} />
+        <StatCard label="This Month" value={fmt(mD?.totalAmount || 0)} color="var(--amber)" />
+        <StatCard label="Total Entries" value={data?.pagination?.totalRecords || 0} />
       </div>
       <Tbl cols={cols} rows={rows} loading={loading} empty="No expense entries yet" />
+      {data?.pagination && (
+        <Pagination
+          page={data.pagination.page} limit={data.pagination.limit}
+          totalRecords={data.pagination.totalRecords} totalPages={data.pagination.totalPages}
+          hasNextPage={data.pagination.hasNextPage} hasPreviousPage={data.pagination.hasPreviousPage}
+          onPageChange={setPage}
+          onLimitChange={l => { setLimit(l); setPage(1) }}
+        />
+      )}
 
       {modal && (
         <Modal title="Add Expense Entry" onClose={() => setModal(false)}

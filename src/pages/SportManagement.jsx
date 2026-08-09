@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAsync } from '../hooks/useAsync'
 import { useToast } from '../context/ToastContext'
 import { sportsApi, courtsApi, taxesApi, chargesApi } from '../api/client'
-import { Btn, Badge, Tbl, Modal, FG, FRow, Toggle, Spinner, PageHeader, InfoBox } from '../components/ui'
+import { Btn, Badge, Tbl, Modal, FG, FRow, Toggle, Spinner, PageHeader, InfoBox, Pagination } from '../components/ui'
 
 const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN')
 const COLORS = ['#22d26e','#7c6fff','#ffb547','#ff5757','#47a3ff','#2dd4bf','#ec4899','#f97316']
@@ -96,15 +96,22 @@ export function Sports() {
 /* ══════════════════════════════ COURTS ════════════════════════════════════ */
 export function Courts() {
   const toast = useToast()
-  const { data, loading, reload } = useAsync(() => courtsApi.list({ limit: 100 }))
+  const [page,  setPage]  = useState(1)
+  const [limit, setLimit] = useState(50)
+  const [fs, setFs] = useState('')
+  const { data, loading, reload } = useAsync(
+    () => courtsApi.list({ page, limit, ...(fs ? { sport: fs } : {}) }),
+    [page, limit, fs]
+  )
   const { data: sD } = useAsync(() => sportsApi.list({ limit: 50 }))
   const [modal,  setModal]  = useState(null)
   const [form,   setForm]   = useState({ name:'', sport:'', desc:'', active:true })
   const [saving, setSaving] = useState(false)
-  const [fs, setFs] = useState('')
   const sports = sD?.data || []
-  const rows   = (data?.data || []).filter(c => !fs || c.sport?._id === fs)
+  const rows   = data?.data || []
   const p = f => setForm(prev => ({ ...prev, ...f }))
+
+  function changeSportFilter(v) { setFs(v); setPage(1) }
 
   async function save() {
     if (!form.name || !form.sport) { toast('Name & sport required', 'error'); return }
@@ -139,12 +146,21 @@ export function Courts() {
         action={<Btn size="sm" onClick={() => { setForm({ name:'', sport: sports[0]?._id || '', desc:'', active:true }); setModal('add') }}>＋ Add Court</Btn>}
       />
       <div style={{ marginBottom:18 }}>
-        <select value={fs} onChange={e => setFs(e.target.value)} style={{ width:'auto' }}>
+        <select value={fs} onChange={e => changeSportFilter(e.target.value)} style={{ width:'auto' }}>
           <option value="">All Sports</option>
           {sports.map(s => <option key={s._id} value={s._id}>{s.icon} {s.name}</option>)}
         </select>
       </div>
       <Tbl cols={cols} rows={rows} loading={loading} />
+      {data?.pagination && (
+        <Pagination
+          page={data.pagination.page} limit={data.pagination.limit}
+          totalRecords={data.pagination.totalRecords} totalPages={data.pagination.totalPages}
+          hasNextPage={data.pagination.hasNextPage} hasPreviousPage={data.pagination.hasPreviousPage}
+          onPageChange={setPage}
+          onLimitChange={l => { setLimit(l); setPage(1) }}
+        />
+      )}
 
       {modal && (
         <Modal title={modal === 'add' ? 'Add Court' : 'Edit Court'} onClose={() => setModal(null)}
@@ -237,20 +253,27 @@ export function Taxes() {
 /* ══════════════════════════════ CHARGES ═══════════════════════════════════ */
 export function Charges() {
   const toast = useToast()
-  const { data, loading, reload } = useAsync(() => chargesApi.list({ limit: 100 }))
+  const [page,  setPage]  = useState(1)
+  const [limit, setLimit] = useState(50)
+  const [fs, setFs] = useState('')
+  const { data, loading, reload } = useAsync(
+    () => chargesApi.list({ page, limit, ...(fs ? { sport: fs } : {}) }),
+    [page, limit, fs]
+  )
   const { data: sD } = useAsync(() => sportsApi.list({ limit: 50 }))
   const { data: tD } = useAsync(() => taxesApi.list({ limit: 50 }))
   const [modal,  setModal]  = useState(null)
   const [form,   setForm]   = useState({ name:'', sport:'', type:'Hourly', base:'', tax:'', active:true })
   const [saving, setSaving] = useState(false)
-  const [fs, setFs] = useState('')
   const sports  = sD?.data || []
   const taxes   = (tD?.data || []).filter(t => t.active)
-  const rows    = (data?.data || []).filter(c => !fs || c.sport?._id === fs)
+  const rows    = data?.data || []
   const selTax  = taxes.find(t => t._id === form.tax)
   const finalPrice = form.base && selTax ? +form.base * (1 + selTax.rate / 100) : 0
   const TYPES = ['Hourly','Coaching','Monthly','Yearly','Weekend']
   const p = f => setForm(prev => ({ ...prev, ...f }))
+
+  function changeSportFilter(v) { setFs(v); setPage(1) }
 
   async function save() {
     if (!form.name || !form.sport || !form.base || !form.tax) { toast('Fill all fields', 'error'); return }
@@ -283,12 +306,21 @@ export function Charges() {
         action={<Btn size="sm" onClick={() => { setForm({ name:'', sport: sports[0]?._id || '', type:'Hourly', base:'', tax: taxes[0]?._id || '', active:true }); setModal('add') }}>＋ Add Charge</Btn>}
       />
       <div style={{ marginBottom:18 }}>
-        <select value={fs} onChange={e => setFs(e.target.value)} style={{ width:'auto' }}>
+        <select value={fs} onChange={e => changeSportFilter(e.target.value)} style={{ width:'auto' }}>
           <option value="">All Sports</option>
           {sports.map(s => <option key={s._id} value={s._id}>{s.icon} {s.name}</option>)}
         </select>
       </div>
       <Tbl cols={cols} rows={rows} loading={loading} />
+      {data?.pagination && (
+        <Pagination
+          page={data.pagination.page} limit={data.pagination.limit}
+          totalRecords={data.pagination.totalRecords} totalPages={data.pagination.totalPages}
+          hasNextPage={data.pagination.hasNextPage} hasPreviousPage={data.pagination.hasPreviousPage}
+          onPageChange={setPage}
+          onLimitChange={l => { setLimit(l); setPage(1) }}
+        />
+      )}
 
       {modal && (
         <Modal title={modal === 'add' ? 'Add Charge' : 'Edit Charge'} onClose={() => setModal(null)}
