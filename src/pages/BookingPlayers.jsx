@@ -3,7 +3,7 @@ import { useAsync } from '../hooks/useAsync'
 import { useToast } from '../context/ToastContext'
 import { calculateAge, formatDate } from '../helpers'
 import { playersApi, bookingsApi, sportsApi, courtsApi, chargesApi } from '../api/client'
-import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, InfoBox, Avatar, Pagination } from '../components/ui'
+import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, InfoBox, Avatar, Pagination, ErrMsg } from '../components/ui'
 import { PAYMENT_MODES, PAYMENT_MODE_COLOR } from '../constants/paymentModes'
 import logoImg from '../assets/logo.png'
 
@@ -17,6 +17,8 @@ const maxDate = () => {
 
 const GENDERS       = ['', 'Male', 'Female', 'Other']
 const RELATIONS     = ['', 'Parent', 'Spouse', 'Sibling', 'Friend', 'Guardian', 'Other']
+const BOOKING_STATUSES = ['Confirmed', 'Pending', 'Cancelled']
+const emptyBookingFilters = { playerId: '', sportId: '', chargeId: '', paymentMode: '', status: '', startDate: '', endDate: '' }
 
 const EMPTY_PLAYER = {
   name: '', phone: '', email: '', primarySport: '', active: true,
@@ -282,9 +284,28 @@ export function Players() {
 /* ══════════════════════════════ BOOKINGS ══════════════════════════════════ */
 export function Bookings() {
   const toast = useToast()
-  const [page,  setPage]  = useState(1)
-  const [limit, setLimit] = useState(50)
-  const { data, loading, reload } = useAsync(() => bookingsApi.list({ page, limit }), [page, limit])
+  const [page,    setPage]    = useState(1)
+  const [limit,   setLimit]   = useState(50)
+  const [filters, setFilters] = useState(emptyBookingFilters)
+  const hasClientFilter = !!(filters.startDate || filters.endDate || filters.paymentMode || filters.chargeId)
+  // The bookings API only recognizes `player`/`sport`/`status` as filter params
+  // (unlike Sales, which also supports playerId/sportId/paymentMode/search/date-range) —
+  // it silently ignores anything else, including `paymentMode`, `charge` and a `date`
+  // range, so those are applied client-side instead of via query params. Since that
+  // means filtering happens after the server has already paginated, an active client
+  // filter widens the fetch to the max page size and the server's page controls are
+  // replaced with a plain match count below — page-by-page navigation can't be trusted
+  // once the visible rows no longer correspond to the server's own page boundaries.
+  const { data, loading, error, reload } = useAsync(
+    () => bookingsApi.list({
+      page: hasClientFilter ? 1 : page,
+      limit: hasClientFilter ? 200 : limit,
+      ...(filters.playerId ? { player: filters.playerId } : {}),
+      ...(filters.sportId  ? { sport:  filters.sportId  } : {}),
+      ...(filters.status   ? { status: filters.status   } : {}),
+    }),
+    [page, limit, filters.playerId, filters.sportId, filters.status, hasClientFilter]
+  )
   const { data: pD  } = useAsync(() => playersApi.list({ limit: 200 }))
   const { data: sD  } = useAsync(() => sportsApi.list({ limit: 50 }))
   const { data: coD } = useAsync(() => courtsApi.list({ limit: 100 }))
@@ -300,6 +321,18 @@ export function Bookings() {
   })
   const p = f => setForm(prev => ({ ...prev, ...f }))
 
+  function changeFilter(f) { setFilters(prev => ({ ...prev, ...f })); setPage(1) }
+  function changeLimit(l)  { setLimit(l); setPage(1) }
+  function clearFilters()  { setFilters(emptyBookingFilters); setPage(1) }
+  const hasActiveFilters = Object.values(filters).some(Boolean)
+
+  const rows = (data?.data || []).filter(r =>
+    (!filters.startDate   || r.date >= filters.startDate) &&
+    (!filters.endDate     || r.date <= filters.endDate) &&
+    (!filters.paymentMode || r.paymentMode === filters.paymentMode) &&
+    (!filters.chargeId    || (r.charge?._id || r.charge) === filters.chargeId)
+  )
+
   // Server-side `chargeType` filtering can't be trusted alone: charges created
   // before this field existed have no chargeType stored in MongoDB (Mongoose
   // only fills the 'BOOKING' default on read, not in the query layer), so a
@@ -311,12 +344,17 @@ export function Bookings() {
     () => chargesApi.list({ active: true, limit: 100, ...(form.sport ? { sport: form.sport } : {}) }),
     [form.sport]
   )
+  // Charge list for the filter dropdown — decoupled from the New Booking form's
+  // sport selection so every booking charge is available to filter by, not just
+  // those matching whatever sport happens to be selected in the (unrelated) form.
+  const { data: allChD } = useAsync(() => chargesApi.list({ active: true, limit: 200 }), [])
 
-  const players    = pD?.data.sort((a, b) => a.name.localeCompare(b.name)) || []
-  const sports     = (sD?.data || []).filter(x => x.active)
-  const allCourts  = coD?.data || []
-  const fCourts    = form.sport ? allCourts.filter(c => c.sport?._id === form.sport && c.active)  : []
-  const fCharges   = (chD?.data || []).filter(c => !c.chargeType || c.chargeType === 'BOOKING')
+  const players       = pD?.data.sort((a, b) => a.name.localeCompare(b.name)) || []
+  const sports        = (sD?.data || []).filter(x => x.active)
+  const allCourts     = coD?.data || []
+  const fCourts       = form.sport ? allCourts.filter(c => c.sport?._id === form.sport && c.active)  : []
+  const fCharges      = (chD?.data || []).filter(c => !c.chargeType || c.chargeType === 'BOOKING')
+  const filterCharges = (allChD?.data || []).filter(c => !c.chargeType || c.chargeType === 'BOOKING')
   const selCharge  = fCharges.find(c => c._id === form.charge)
   const selTax     = selCharge?.tax
 
@@ -392,14 +430,57 @@ export function Bookings() {
           </Btn>
         }
       />
-      <Tbl cols={cols} rows={data?.data || []} loading={loading} />
-      {data?.pagination && (
+      {error && <ErrMsg msg={error} />}
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 18, alignItems: 'flex-end' }}>
+        <select value={filters.playerId} onChange={e => changeFilter({ playerId: e.target.value })} style={{ width: 'auto' }}>
+          <option value="">All Players</option>
+          {players.map(pl => <option key={pl._id} value={pl._id}>{pl.name} {pl.nickname ? `(${pl.nickname})` : ""}</option>)}
+        </select>
+        <select value={filters.sportId} onChange={e => changeFilter({ sportId: e.target.value })} style={{ width: 'auto' }}>
+          <option value="">All Sports</option>
+          {sports.map(s => <option key={s._id} value={s._id}>{s.icon} {s.name}</option>)}
+        </select>
+        <select value={filters.chargeId} onChange={e => changeFilter({ chargeId: e.target.value })} style={{ width: 'auto' }}>
+          <option value="">All Charges</option>
+          {filterCharges.map(c => <option key={c._id} value={c._id}>{c.name} — {fmt(c.base)}</option>)}
+        </select>
+        <select value={filters.paymentMode} onChange={e => changeFilter({ paymentMode: e.target.value })} style={{ width: 'auto' }}>
+          <option value="">All Payment Modes</option>
+          {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+        </select>
+        {/* <select value={filters.status} onChange={e => changeFilter({ status: e.target.value })} style={{ width: 'auto' }}>
+          <option value="">All Status</option>
+          {BOOKING_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select> */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontSize: 11, color: 'var(--tx3)' }}>From Date</label>
+          <input type="date" value={filters.startDate} onChange={e => changeFilter({ startDate: e.target.value })} style={{ width: 'auto' }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontSize: 11, color: 'var(--tx3)' }}>To Date</label>
+          <input type="date" value={filters.endDate} onChange={e => changeFilter({ endDate: e.target.value })} style={{ width: 'auto' }} />
+        </div>
+        {hasActiveFilters && <Btn variant="ghost" size="sm" onClick={clearFilters}>Clear Filters</Btn>}
+      </div>
+
+      <Tbl
+        cols={cols} rows={rows} loading={loading}
+        empty={hasActiveFilters ? 'No bookings match your filters.' : 'No bookings found.'}
+      />
+      {hasClientFilter ? (
+        rows.length > 0 && (
+          <div style={{ fontSize: 13, color: 'var(--tx3)', marginTop: 16 }}>
+            {rows.length} booking{rows.length !== 1 ? 's' : ''} match your filters
+          </div>
+        )
+      ) : data?.pagination && (
         <Pagination
           page={data.pagination.page} limit={data.pagination.limit}
           totalRecords={data.pagination.totalRecords} totalPages={data.pagination.totalPages}
           hasNextPage={data.pagination.hasNextPage} hasPreviousPage={data.pagination.hasPreviousPage}
           onPageChange={setPage}
-          onLimitChange={l => { setLimit(l); setPage(1) }}
+          onLimitChange={changeLimit}
         />
       )}
 

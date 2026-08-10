@@ -269,7 +269,7 @@ export default function Sales() {
         />
         <select value={filters.playerId} onChange={e => changeFilter({ playerId: e.target.value })} style={{ width: 'auto' }}>
           <option value="">All Players</option>
-          {players.map(pl => <option key={pl._id} value={pl._id}>{pl.name}</option>)}
+          {players.map(pl => <option key={pl._id} value={pl._id}>{pl.name} {pl.nickname ? `(${pl.nickname})` : ""}</option>)}
         </select>
         <select value={filters.sportId} onChange={e => changeFilter({ sportId: e.target.value })} style={{ width: 'auto' }}>
           <option value="">All Sports</option>
