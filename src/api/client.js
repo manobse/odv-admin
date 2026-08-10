@@ -112,6 +112,16 @@ export const bookingsApi = {
   cancel: id     => api.del(`/bookings/${id}`),
 }
 
+// ── Sales ─────────────────────────────────────────────────────────────────────
+export const salesApi = {
+  list:    p      => api.get('/sales', p),
+  get:     id     => api.get(`/sales/${id}`),
+  create:  body   => api.post('/sales', body),
+  update:  (id,b) => api.put(`/sales/${id}`, b),
+  cancel:  id     => api.patch(`/sales/${id}/cancel`),
+  invoice: id     => api.get(`/sales/${id}/invoice`),
+}
+
 // ── Categories ────────────────────────────────────────────────────────────────
 export const categoriesApi = {
   list:   p      => api.get('/categories', p),

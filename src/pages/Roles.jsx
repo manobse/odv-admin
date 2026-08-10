@@ -10,6 +10,7 @@ const ALL_PERMS = [
   { key:'charges',    label:'Charges & Pricing',    icon:'⚡' },
   { key:'taxes',      label:'Tax Management',       icon:'📋' },
   { key:'bookings',   label:'Slot Booking',         icon:'📅' },
+  { key:'sales',      label:'Sales & POS',          icon:'🛒' },
   { key:'income',     label:'Income Entry',         icon:'📈' },
   { key:'expenses',   label:'Expense Entry',        icon:'📉' },
   { key:'categories', label:'Category Management',  icon:'🗂' },
@@ -42,8 +43,14 @@ export default function Roles() {
     if (!form.name) { toast('Role name required', 'error'); return }
     setSaving(true)
     try {
-      if (modal === 'add') await rolesApi.create(form)
-      else await rolesApi.update(form._id, form)
+      if (modal === 'add') {
+        await rolesApi.create(form)
+      } else {
+        // The backend rejects any `name` field on a system-role update — even
+        // unchanged — as a rename attempt, so omit it for system roles.
+        const body = form.isSystem ? { permissions: form.permissions } : form
+        await rolesApi.update(form._id, body)
+      }
       toast('Role saved', 'success'); reload(); setModal(null)
     } catch (e) { toast(e.message, 'error') }
     finally { setSaving(false) }

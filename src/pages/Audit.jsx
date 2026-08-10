@@ -6,7 +6,7 @@ import { Spinner, Badge, PageHeader } from '../components/ui'
 
 const TYPE_ICON  = { login:'🔐', logout:'🔓', create:'✚', update:'✏', delete:'🗑', view:'👁', export:'📤' }
 const TYPE_COLOR = { login:'blue', logout:'blue', create:'green', update:'amber', delete:'red', view:'accent', export:'teal' }
-const MODULES    = ['Auth','Bookings','Finance','HR','Payroll','Roles','Sports','System']
+const MODULES    = ['Auth','Bookings','Finance','HR','Payroll','Roles','Sales','Sports','System']
 const TYPES      = ['login','logout','create','update','delete','view','export']
 
 export default function Audit() {
