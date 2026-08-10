@@ -11,6 +11,7 @@ const NAV = [
   { to:'/taxes',      label:'Taxes',         icon:'📋', sec:null },
   { to:'/players',    label:'Players',       icon:'👤', sec:'Operations' },
   { to:'/bookings',   label:'Bookings',      icon:'📅', sec:null },
+  { to:'/sales',      label:'Sales',         icon:'🛒', sec:null, perm:'sales' },
   { to:'/income',     label:'Income',        icon:'📈', sec:'Finance' },
   { to:'/expenses',   label:'Expenses',      icon:'📉', sec:null },
   { to:'/categories', label:'Categories',    icon:'🗂', sec:null },
@@ -22,7 +23,7 @@ const NAV = [
 ]
 
 export function Layout({ children }) {
-  const { user, logout } = useAuth()
+  const { user, logout, hasPerm } = useAuth()
   const toast = useToast()
   const location = useLocation()
   const [dark,     setDark]     = useState(() => localStorage.getItem('sp_theme') !== 'light')
@@ -93,7 +94,7 @@ export function Layout({ children }) {
         <nav style={{ flex:1, overflowY:'auto', padding:'6px 0 8px' }}>
           {(() => {
             let lastSec = null
-            return NAV.map(n => {
+            return NAV.filter(n => !n.perm || hasPerm(n.perm)).map(n => {
               const showSec = n.sec && n.sec !== lastSec
               if (showSec) lastSec = n.sec
               return (

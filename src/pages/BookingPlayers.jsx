@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAsync } from '../hooks/useAsync'
 import { useToast } from '../context/ToastContext'
 import { calculateAge, formatDate } from '../helpers'
 import { playersApi, bookingsApi, sportsApi, courtsApi, chargesApi } from '../api/client'
 import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, InfoBox, Avatar, Pagination } from '../components/ui'
+import { PAYMENT_MODES, PAYMENT_MODE_COLOR } from '../constants/paymentModes'
 import logoImg from '../assets/logo.png'
 
 const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN')
@@ -15,7 +16,6 @@ const maxDate = () => {
 }
 
 const GENDERS       = ['', 'Male', 'Female', 'Other']
-const PAYMENT_MODES = ['Cash', 'UPI', 'Card', 'Bank Transfer']
 const RELATIONS     = ['', 'Parent', 'Spouse', 'Sibling', 'Friend', 'Guardian', 'Other']
 
 const EMPTY_PLAYER = {
@@ -288,7 +288,6 @@ export function Bookings() {
   const { data: pD  } = useAsync(() => playersApi.list({ limit: 200 }))
   const { data: sD  } = useAsync(() => sportsApi.list({ limit: 50 }))
   const { data: coD } = useAsync(() => courtsApi.list({ limit: 100 }))
-  const { data: chD } = useAsync(() => chargesApi.list({ limit: 100 }))
   const [modal,   setModal]   = useState(null)
   const [invoice, setInvoice] = useState(null)
   const [saving,  setSaving]  = useState(false)
@@ -301,14 +300,29 @@ export function Bookings() {
   })
   const p = f => setForm(prev => ({ ...prev, ...f }))
 
+  // Server-side `chargeType` filtering can't be trusted alone: charges created
+  // before this field existed have no chargeType stored in MongoDB (Mongoose
+  // only fills the 'BOOKING' default on read, not in the query layer), so a
+  // pure ?chargeType=BOOKING filter silently drops legacy booking charges.
+  // Filter by sport server-side (always reliably stored) and by chargeType
+  // client-side, treating a missing chargeType as BOOKING to match the
+  // backend's own documented legacy-default behavior.
+  const { data: chD } = useAsync(
+    () => chargesApi.list({ active: true, limit: 100, ...(form.sport ? { sport: form.sport } : {}) }),
+    [form.sport]
+  )
+
   const players    = pD?.data.sort((a, b) => a.name.localeCompare(b.name)) || []
   const sports     = (sD?.data || []).filter(x => x.active)
   const allCourts  = coD?.data || []
-  const allCharges = chD?.data || []
   const fCourts    = form.sport ? allCourts.filter(c => c.sport?._id === form.sport && c.active)  : []
-  const fCharges   = form.sport ? allCharges.filter(c => c.sport?._id === form.sport && c.active) : []
-  const selCharge  = allCharges.find(c => c._id === form.charge)
+  const fCharges   = (chD?.data || []).filter(c => !c.chargeType || c.chargeType === 'BOOKING')
+  const selCharge  = fCharges.find(c => c._id === form.charge)
   const selTax     = selCharge?.tax
+
+  useEffect(() => {
+    if (form.charge && !fCharges.some(c => c._id === form.charge)) p({ charge: '' })
+  }, [chD]) // eslint-disable-line react-hooks/exhaustive-deps
   const base       = selCharge?.base || 0
   const taxAmt     = base * (selTax?.rate || 0) / 100
   const disc       = form.discountType === 'flat' ? +form.discount : base * (+form.discount / 100)
@@ -359,9 +373,8 @@ export function Bookings() {
     { key:'total',       label:'Amount',  render: r => <strong>{fmt(r.totalAmount)}</strong> },
     {
       key: 'paymentMode', label: 'Payment Mode', render: r => {
-        const colors = { Cash:'blue', UPI:'teal', Card:'accent', 'Bank Transfer':'amber' }
         return r.paymentMode
-          ? <Badge variant={colors[r.paymentMode] || 'default'}>{r.paymentMode}</Badge>
+          ? <Badge variant={PAYMENT_MODE_COLOR[r.paymentMode] || 'default'}>{r.paymentMode}</Badge>
           : <span style={{ color:'var(--text3)' }}>—</span>
       },
     },

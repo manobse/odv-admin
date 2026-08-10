@@ -3,9 +3,12 @@ import { useAsync } from '../hooks/useAsync'
 import { useToast } from '../context/ToastContext'
 import { sportsApi, courtsApi, taxesApi, chargesApi } from '../api/client'
 import { Btn, Badge, Tbl, Modal, FG, FRow, Toggle, Spinner, PageHeader, InfoBox, Pagination } from '../components/ui'
+import { ChargeTypeBadge, ChargeTypeSelect } from '../components/ChargeType'
+import { CHARGE_TYPES } from '../constants/chargeTypes'
 
 const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN')
 const COLORS = ['#22d26e','#7c6fff','#ffb547','#ff5757','#47a3ff','#2dd4bf','#ec4899','#f97316']
+const DURATION_TYPES = ['Hourly','Coaching','Monthly','Yearly','Weekend']
 
 /* ══════════════════════════════ SPORTS ════════════════════════════════════ */
 export function Sports() {
@@ -256,30 +259,35 @@ export function Charges() {
   const [page,  setPage]  = useState(1)
   const [limit, setLimit] = useState(50)
   const [fs, setFs] = useState('')
+  const [fct, setFct] = useState('')
   const { data, loading, reload } = useAsync(
-    () => chargesApi.list({ page, limit, ...(fs ? { sport: fs } : {}) }),
-    [page, limit, fs]
+    () => chargesApi.list({ page, limit, ...(fs ? { sport: fs } : {}), ...(fct ? { chargeType: fct } : {}) }),
+    [page, limit, fs, fct]
   )
   const { data: sD } = useAsync(() => sportsApi.list({ limit: 50 }))
   const { data: tD } = useAsync(() => taxesApi.list({ limit: 50 }))
   const [modal,  setModal]  = useState(null)
-  const [form,   setForm]   = useState({ name:'', sport:'', type:'Hourly', base:'', tax:'', active:true })
+  const [form,   setForm]   = useState({ name:'', chargeType:'BOOKING', sport:'', type:'Hourly', base:'', tax:'', active:true })
   const [saving, setSaving] = useState(false)
   const sports  = sD?.data || []
   const taxes   = (tD?.data || []).filter(t => t.active)
   const rows    = data?.data || []
   const selTax  = taxes.find(t => t._id === form.tax)
   const finalPrice = form.base && selTax ? +form.base * (1 + selTax.rate / 100) : 0
-  const TYPES = ['Hourly','Coaching','Monthly','Yearly','Weekend']
+  const isBooking = form.chargeType === 'BOOKING'
   const p = f => setForm(prev => ({ ...prev, ...f }))
 
   function changeSportFilter(v) { setFs(v); setPage(1) }
+  function changeChargeTypeFilter(v) { setFct(v); setPage(1) }
 
   async function save() {
-    if (!form.name || !form.sport || !form.base || !form.tax) { toast('Fill all fields', 'error'); return }
+    if (!form.name || !form.base || !form.tax || (isBooking && (!form.sport || !form.type))) {
+      toast('Fill all fields', 'error'); return
+    }
     setSaving(true)
     try {
       const body = { ...form, base: +form.base }
+      if (!isBooking) { body.sport = undefined; body.type = undefined }
       if (modal === 'add') await chargesApi.create(body)
       else await chargesApi.update(form._id, body)
       toast('Saved', 'success'); reload(); setModal(null)
@@ -288,27 +296,32 @@ export function Charges() {
   }
 
   const cols = [
-    { key:'name',   label:'Charge', render: r => <strong>{r.name}</strong> },
-    { key:'sport',  label:'Sport',  render: r => <span style={{ color: r.sport?.color, fontSize:13 }}>{r.sport?.icon} {r.sport?.name}</span> },
-    { key:'type',   label:'Type',   render: r => <span style={{ background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:40, padding:'3px 10px', fontSize:12 }}>{r.type}</span> },
-    { key:'base',   label:'Base',   render: r => fmt(r.base) },
-    { key:'tax',    label:'Tax',    render: r => <span style={{ fontSize:12, color:'var(--text3)' }}>{r.tax?.name || '—'}</span> },
-    { key:'final',  label:'Final Price', render: r => <strong style={{ color:'var(--green)' }}>{fmt(r.base * (1 + (r.tax?.rate || 0) / 100))}</strong> },
-    { key:'active', label:'Status', render: r => <Badge variant={r.active ? 'green' : 'red'}>{r.active ? 'Active' : 'Off'}</Badge> },
-    { key:'actions',label:'', render: r => (
-      <Btn variant="ghost" size="xs" onClick={() => { setForm({ ...r, sport: r.sport?._id, tax: r.tax?._id, base: String(r.base) }); setModal('edit') }}>Edit</Btn>
+    { key:'name',       label:'Charge',      render: r => <strong>{r.name}</strong> },
+    { key:'chargeType', label:'Charge Type', render: r => <ChargeTypeBadge type={r.chargeType} /> },
+    { key:'sport',      label:'Sport',       render: r => r.sport ? <span style={{ color: r.sport?.color, fontSize:13 }}>{r.sport?.icon} {r.sport?.name}</span> : <span style={{ color:'var(--text3)' }}>—</span> },
+    { key:'type',       label:'Duration',    render: r => r.type ? <span style={{ background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:40, padding:'3px 10px', fontSize:12 }}>{r.type}</span> : <span style={{ color:'var(--text3)' }}>—</span> },
+    { key:'base',       label:'Base',        render: r => fmt(r.base) },
+    { key:'tax',        label:'Tax',         render: r => <span style={{ fontSize:12, color:'var(--text3)' }}>{r.tax?.name || '—'}</span> },
+    { key:'final',      label:'Final Price', render: r => <strong style={{ color:'var(--green)' }}>{fmt(r.base * (1 + (r.tax?.rate || 0) / 100))}</strong> },
+    { key:'active',     label:'Status',      render: r => <Badge variant={r.active ? 'green' : 'red'}>{r.active ? 'Active' : 'Off'}</Badge> },
+    { key:'actions',    label:'',            render: r => (
+      <Btn variant="ghost" size="xs" onClick={() => { setForm({ ...r, chargeType: r.chargeType || 'BOOKING', sport: r.sport?._id || '', type: r.type || 'Hourly', tax: r.tax?._id, base: String(r.base) }); setModal('edit') }}>Edit</Btn>
     )},
   ]
 
   return (
     <div>
       <PageHeader title="Charges & Pricing" sub="Sport-specific pricing options"
-        action={<Btn size="sm" onClick={() => { setForm({ name:'', sport: sports[0]?._id || '', type:'Hourly', base:'', tax: taxes[0]?._id || '', active:true }); setModal('add') }}>＋ Add Charge</Btn>}
+        action={<Btn size="sm" onClick={() => { setForm({ name:'', chargeType:'BOOKING', sport: sports[0]?._id || '', type:'Hourly', base:'', tax: taxes[0]?._id || '', active:true }); setModal('add') }}>＋ Add Charge</Btn>}
       />
-      <div style={{ marginBottom:18 }}>
+      <div style={{ marginBottom:18, display:'flex', gap:10, flexWrap:'wrap' }}>
         <select value={fs} onChange={e => changeSportFilter(e.target.value)} style={{ width:'auto' }}>
           <option value="">All Sports</option>
           {sports.map(s => <option key={s._id} value={s._id}>{s.icon} {s.name}</option>)}
+        </select>
+        <select value={fct} onChange={e => changeChargeTypeFilter(e.target.value)} style={{ width:'auto' }}>
+          <option value="">All Charge Types</option>
+          {CHARGE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
       </div>
       <Tbl cols={cols} rows={rows} loading={loading} />
@@ -325,19 +338,24 @@ export function Charges() {
       {modal && (
         <Modal title={modal === 'add' ? 'Add Charge' : 'Edit Charge'} onClose={() => setModal(null)}
           footer={<><Btn variant="ghost" size="sm" onClick={() => setModal(null)}>Cancel</Btn><Btn size="sm" loading={saving} onClick={save}>Save</Btn></>}>
-          <FRow>
-            <FG label="Sport">
-              <select value={form.sport} onChange={e => p({ sport: e.target.value })}>
-                <option value="">Select…</option>
-                {sports.map(s => <option key={s._id} value={s._id}>{s.icon} {s.name}</option>)}
-              </select>
-            </FG>
-            <FG label="Type">
-              <select value={form.type} onChange={e => p({ type: e.target.value })}>
-                {TYPES.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </FG>
-          </FRow>
+          <FG label="Charge Type">
+            <ChargeTypeSelect value={form.chargeType} onChange={v => p({ chargeType: v })} />
+          </FG>
+          {isBooking && (
+            <FRow>
+              <FG label="Sport">
+                <select value={form.sport} onChange={e => p({ sport: e.target.value })}>
+                  <option value="">Select…</option>
+                  {sports.map(s => <option key={s._id} value={s._id}>{s.icon} {s.name}</option>)}
+                </select>
+              </FG>
+              <FG label="Duration">
+                <select value={form.type} onChange={e => p({ type: e.target.value })}>
+                  {DURATION_TYPES.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </FG>
+            </FRow>
+          )}
           <FG label="Charge Name"><input value={form.name} onChange={e => p({ name: e.target.value })} placeholder="e.g. Hourly Rate" autoFocus /></FG>
           <FRow>
             <FG label="Base Price (₹)"><input type="number" value={form.base} onChange={e => p({ base: e.target.value })} min="0" /></FG>
@@ -348,6 +366,12 @@ export function Charges() {
               </select>
             </FG>
           </FRow>
+          <FG label="Status">
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <Toggle on={form.active} onClick={() => p({ active: !form.active })} />
+              <span style={{ fontSize:13, color:'var(--text2)' }}>{form.active ? 'Active' : 'Inactive'}</span>
+            </div>
+          </FG>
           {finalPrice > 0 && (
             <InfoBox>Final price: <strong style={{ color:'var(--accent)' }}>{fmt(finalPrice)}</strong> (incl. {selTax?.rate}% tax)</InfoBox>
           )}

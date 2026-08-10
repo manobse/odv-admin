@@ -13,6 +13,7 @@ import Charges    from './pages/Charges'
 import Taxes      from './pages/Taxes'
 import Players    from './pages/Players'
 import Bookings   from './pages/Bookings'
+import Sales      from './pages/Sales'
 import Income     from './pages/Income'
 import Expenses   from './pages/Expenses'
 import Categories from './pages/Categories'
@@ -51,6 +52,7 @@ function App() {
                     <Route path="/taxes"       element={<Taxes />} />
                     <Route path="/players"     element={<Players />} />
                     <Route path="/bookings"    element={<Bookings />} />
+                    <Route path="/sales"       element={<Sales />} />
                     <Route path="/income"      element={<Income />} />
                     <Route path="/expenses"    element={<Expenses />} />
                     <Route path="/categories"  element={<Categories />} />

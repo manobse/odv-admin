@@ -1,19 +1,22 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAsync } from '../hooks/useAsync'
 import { useToast } from '../context/ToastContext'
 import { formatDate } from '../helpers'
 import { incomeApi, expensesApi, categoriesApi } from '../api/client'
 import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, StatCard, Tabs, Pagination } from '../components/ui'
+import { PAYMENT_MODES, PAYMENT_MODE_COLOR } from '../constants/paymentModes'
 
 const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN')
 const today = () => new Date().toISOString().slice(0, 10)
 const thisMonth = () => new Date().toISOString().slice(0, 7)
 
-const PAYMENT_MODES = ['Cash', 'UPI', 'Card', 'Bank Transfer']
+const SOURCE_COLOR   = { Booking: 'blue', Sales: 'teal' }
 
 /* ══════════════════════════════ INCOME ════════════════════════════════════ */
 export function Income() {
   const toast = useToast()
+  const navigate = useNavigate()
   const [page,  setPage]  = useState(1)
   const [limit, setLimit] = useState(50)
   const { data, loading, reload } = useAsync(() => incomeApi.list({ page, limit }), [page, limit])
@@ -59,18 +62,32 @@ export function Income() {
   const cols = [
     { key: 'date', label: 'Date', render: r => <span style={{ fontSize: 13, color: 'var(--text3)' }}>{formatDate(r.date)}</span> },
     { key: 'category', label: 'Category', render: r => <Badge variant="green">{r.category?.name || '—'}</Badge> },
+    { key: 'source', label: 'Source', render: r => r.refModel ? <Badge variant={SOURCE_COLOR[r.refModel] || 'default'}>{r.refModel}</Badge> : <Badge>Manual</Badge> },
     { key: 'description', label: 'Description', render: r => <span style={{ fontSize: 13 }}>{r.description}</span> },
-    { key: 'reference', label: 'Ref', render: r => <code style={{ fontSize: 12, color: 'var(--accent)' }}>{r.reference || '—'}</code> },
+    {
+      key: 'reference', label: 'Ref', render: r => r.refModel === 'Sales' && r.reference
+        ? <button
+            type="button"
+            onClick={() => navigate(`/sales?search=${encodeURIComponent(r.reference)}`)}
+            style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            {r.reference}
+          </button>
+        : <code style={{ fontSize: 12, color: 'var(--accent)' }}>{r.reference || '—'}</code>,
+    },
     { key: 'amount', label: 'Amount', render: r => <strong style={{ color: 'var(--green)' }}>{fmt(r.amount)}</strong> },
     {
       key: 'paymentMode', label: 'Payment Mode', render: r => {
-        const colors = { Cash: 'blue', UPI: 'teal', Card: 'accent', 'Bank Transfer': 'amber' }
         return r.paymentMode
-          ? <Badge variant={colors[r.paymentMode] || 'default'}>{r.paymentMode}</Badge>
+          ? <Badge variant={PAYMENT_MODE_COLOR[r.paymentMode] || 'default'}>{r.paymentMode}</Badge>
           : <span style={{ color: 'var(--text3)' }}>—</span>
       },
     },
-    { key: 'del', label: '', render: r => <Btn variant="danger" size="xs" onClick={() => del(r._id)} style={{ padding: '4px 8px' }}>🗑</Btn> },
+    {
+      key: 'del', label: '', render: r => r.refModel === 'Sales'
+        ? <span title="Cancel the sale in Sales to reverse this entry" style={{ fontSize: 16, color: 'var(--text3)', cursor: 'not-allowed' }}>🔒</span>
+        : <Btn variant="danger" size="xs" onClick={() => del(r._id)} style={{ padding: '4px 8px' }}>🗑</Btn>,
+    },
   ]
 
   return (
@@ -182,9 +199,8 @@ export function Expenses() {
     { key: 'amount', label: 'Amount', render: r => <strong style={{ color: 'var(--red)' }}>{fmt(r.amount)}</strong> },
     {
       key: 'paymentMode', label: 'Payment Mode', render: r => {
-        const colors = { Cash: 'blue', UPI: 'teal', Card: 'accent', 'Bank Transfer': 'amber' }
         return r.paymentMode
-          ? <Badge variant={colors[r.paymentMode] || 'default'}>{r.paymentMode}</Badge>
+          ? <Badge variant={PAYMENT_MODE_COLOR[r.paymentMode] || 'default'}>{r.paymentMode}</Badge>
           : <span style={{ color: 'var(--text3)' }}>—</span>
       },
     },

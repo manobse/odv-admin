@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAsync } from '../hooks/useAsync'
 import { useToast } from '../context/ToastContext'
 import { playersApi, bookingsApi, sportsApi, courtsApi, chargesApi } from '../api/client'
@@ -14,21 +14,32 @@ export function MyProfile() {
   const { data: pD  } = useAsync(() => playersApi.list({ limit: 200 }))
   const { data: sD  } = useAsync(() => sportsApi.list({ limit: 50 }))
   const { data: coD } = useAsync(() => courtsApi.list({ limit: 100 }))
-  const { data: chD } = useAsync(() => chargesApi.list({ limit: 100 }))
   const [modal,   setModal]   = useState(null)
   const [invoice, setInvoice] = useState(null)
   const [saving,  setSaving]  = useState(false)
   const [form,    setForm]    = useState({ player:'', sport:'', court:'', charge:'', date:today(), timeFrom:'08:00', timeTo:'09:00', discount:0, discountType:'flat', notes:'' })
   const p = f => setForm(prev => ({ ...prev, ...f }))
 
+  // See BookingPlayers.jsx for why chargeType is filtered client-side rather
+  // than via a ?chargeType=BOOKING server param: legacy charges created before
+  // this field existed have no chargeType stored, only a Mongoose read-time
+  // default, so the server-side filter would silently drop them.
+  const { data: chD } = useAsync(
+    () => chargesApi.list({ active: true, limit: 100, ...(form.sport ? { sport: form.sport } : {}) }),
+    [form.sport]
+  )
+
   const players    = pD?.data || []
   const sports     = (sD?.data || []).filter(x => x.active)
   const allCourts  = coD?.data || []
-  const allCharges = chD?.data || []
   const fCourts    = form.sport ? allCourts.filter(c => c.sport?._id === form.sport && c.active) : []
-  const fCharges   = form.sport ? allCharges.filter(c => c.sport?._id === form.sport && c.active) : []
-  const selCharge  = allCharges.find(c => c._id === form.charge)
+  const fCharges   = (chD?.data || []).filter(c => !c.chargeType || c.chargeType === 'BOOKING')
+  const selCharge  = fCharges.find(c => c._id === form.charge)
   const selTax     = selCharge?.tax
+
+  useEffect(() => {
+    if (form.charge && !fCharges.some(c => c._id === form.charge)) p({ charge: '' })
+  }, [chD]) // eslint-disable-line react-hooks/exhaustive-deps
   const base       = selCharge?.base || 0
   const taxAmt     = base * (selTax?.rate || 0) / 100
   const disc       = form.discountType === 'flat' ? +form.discount : base * (+form.discount / 100)
