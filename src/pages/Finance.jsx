@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext'
 import { formatDate } from '../helpers'
 import { incomeApi, expensesApi, categoriesApi } from '../api/client'
 import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, StatCard, Tabs, Pagination } from '../components/ui'
+import { ConfirmationModal } from '../components/ConfirmationModal'
 import { PAYMENT_MODES, PAYMENT_MODE_COLOR } from '../constants/paymentModes'
 
 const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN')
@@ -24,6 +25,8 @@ export function Income() {
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ date: today(), category: '', amount: '1000', description: '', paymentMode: 'UPI' })
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   const cats = cD?.data || []
   const rows = data?.data || []
   const { data: mD } = useAsync(() => incomeApi.list({ dateFrom: `${thisMonth()}-01`, dateTo: `${thisMonth()}-31` }))
@@ -49,14 +52,21 @@ export function Income() {
     finally { setSaving(false) }
   }
 
-  async function del(id) {
-    if (!confirm('Delete this income entry?')) return
+  function del(id) {
+    setDeleteTarget(id)
+  }
+
+  async function confirmDelete() {
+    const id = deleteTarget
+    setDeleting(true)
     try {
       await incomeApi.del(id)
       toast('Deleted', 'success')
       if (rows.length === 1 && page > 1) setPage(page - 1)
       else reload()
+      setDeleteTarget(null)
     } catch (e) { toast(e.message, 'error') }
+    finally { setDeleting(false) }
   }
 
   const cols = [
@@ -142,6 +152,19 @@ export function Income() {
           </FG>
         </Modal>
       )}
+
+      {deleteTarget && (
+        <ConfirmationModal
+          title="Delete Income Entry?"
+          message="Are you sure you want to delete this income entry?"
+          cancelText="Cancel"
+          confirmText="Delete"
+          confirmVariant="danger"
+          loading={deleting}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
     </div>
   )
 }
@@ -156,6 +179,8 @@ export function Expenses() {
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ date: today(), category: '', amount: '', description: '', paymentMode: 'UPI' })
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   const cats = cD?.data || []
   const rows = data?.data || []
   const { data: mD } = useAsync(() => expensesApi.list({ dateFrom: `${thisMonth()}-01`, dateTo: `${thisMonth()}-31` }))
@@ -181,14 +206,21 @@ export function Expenses() {
     finally { setSaving(false) }
   }
 
-  async function del(id) {
-    if (!confirm('Delete this expense entry?')) return
+  function del(id) {
+    setDeleteTarget(id)
+  }
+
+  async function confirmDelete() {
+    const id = deleteTarget
+    setDeleting(true)
     try {
       await expensesApi.del(id)
       toast('Deleted', 'success')
       if (rows.length === 1 && page > 1) setPage(page - 1)
       else reload()
+      setDeleteTarget(null)
     } catch (e) { toast(e.message, 'error') }
+    finally { setDeleting(false) }
   }
 
   const cols = [
@@ -258,6 +290,19 @@ export function Expenses() {
             />
           </FG>
         </Modal>
+      )}
+
+      {deleteTarget && (
+        <ConfirmationModal
+          title="Delete Expense Entry?"
+          message="Are you sure you want to delete this expense entry?"
+          cancelText="Cancel"
+          confirmText="Delete"
+          confirmVariant="danger"
+          loading={deleting}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
+        />
       )}
     </div>
   )

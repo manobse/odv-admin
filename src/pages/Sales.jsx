@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { formatDate, formatDateTime } from '../helpers'
 import { salesApi, chargesApi, playersApi, sportsApi } from '../api/client'
 import { Btn, Badge, Tbl, Modal, FG, FRow, PageHeader, InfoBox, Pagination, ErrMsg, SearchableSelect } from '../components/ui'
+import { ConfirmationModal } from '../components/ConfirmationModal'
 import { ChargeTypeBadge } from '../components/ChargeType'
 import { SELLABLE_CHARGE_TYPES, CHARGE_TYPE_LABEL } from '../constants/chargeTypes'
 import { PAYMENT_MODES, PAYMENT_MODE_COLOR } from '../constants/paymentModes'
@@ -318,144 +319,22 @@ export default function Sales() {
       )}
 
       {/* ── New / Edit Sale Modal ── */}
-      {modal && (
-        <Modal
-          title={modal === 'add' ? 'New Sale' : `Edit Sale ${form.saleNumber || ''}`}
-          onClose={() => setModal(null)}
-          wide
-          footer={
+      {cancelTarget && (
+        <ConfirmationModal
+          title="Cancel Sale?"
+          message={
             <>
-              <Btn variant="ghost" size="sm" onClick={() => setModal(null)}>Cancel</Btn>
-              <Btn size="sm" loading={saving} onClick={save}>{modal === 'add' ? 'Complete Sale' : 'Save Changes'}</Btn>
+              Are you sure you want to cancel sale <strong>{cancelTarget.saleNumber}</strong>?<br />
+              This action will affect the associated income record.
             </>
           }
-        >
-          <FG label="Customer Type">
-            <div style={{ display: 'flex', gap: 20 }}>
-              {[['player', 'Registered Player'], ['guest', 'Guest / Walk-in']].map(([v, label]) => (
-                <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer' }}>
-                  <input type="radio" name="customerType" checked={form.customerType === v} onChange={() => p({ customerType: v })} style={{ width: 'auto', accentColor: 'var(--ac)' }} />
-                  {label}
-                </label>
-              ))}
-            </div>
-          </FG>
-
-          {form.customerType === 'player' ? (
-            <FG label="Player *">
-              <SearchableSelect
-                options={players}
-                value={form.player}
-                onChange={id => p({ player: id })}
-                getKey={pl => pl._id}
-                getLabel={pl => `${pl.name} — ${pl.phone}`}
-                getSearchText={pl => `${pl.name} ${pl.nickname || ''}`.trim()}
-                placeholder="Select player…"
-              />
-            </FG>
-          ) : (
-            <FG label="Customer Name *">
-              <input value={form.customerName} onChange={e => p({ customerName: e.target.value })} placeholder="Walk-in customer name" autoFocus />
-            </FG>
-          )}
-
-          <FG label="Sport (optional)">
-            <select value={form.sport} onChange={e => p({ sport: e.target.value })}>
-              <option value="">None — generic item</option>
-              {sports.map(s => <option key={s._id} value={s._id}>{s.icon} {s.name}</option>)}
-            </select>
-          </FG>
-
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '.06em', margin: '20px 0 10px', paddingTop: 16, borderTop: '1px solid var(--brd)' }}>
-            Items
-          </div>
-
-          {form.items.map((item, idx) => {
-            const c = itemCalcs[idx]
-            return (
-              <div key={idx} style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', padding: 12, marginBottom: 10, background: 'var(--surf2)', borderRadius: 'var(--r)', border: '1px solid var(--brd)' }}>
-                <div style={{ flex: '2 1 220px' }}>
-                  <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 5 }}>Charge</label>
-                  <select value={item.chargeId} onChange={e => selectItemCharge(idx, e.target.value)}>
-                    <option value="">Select charge…</option>
-                    {SELLABLE_CHARGE_TYPES.map(t => {
-                      const opts = saleCharges.filter(c => c.chargeType === t)
-                      if (!opts.length) return null
-                      return (
-                        <optgroup key={t} label={CHARGE_TYPE_LABEL[t]}>
-                          {opts.map(c => <option key={c._id} value={c._id}>{c.name} — {fmt(c.base)}{c.tax ? ` (+${c.tax.rate}% ${c.tax.name})` : ''}</option>)}
-                        </optgroup>
-                      )
-                    })}
-                  </select>
-                </div>
-                <div style={{ flex: '0 0 auto' }}>
-                  <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 5 }}>Qty</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <button type="button" onClick={() => updateItemQty(idx, String(Math.max(1, (parseInt(item.quantity) || 1) - 1)))} style={QTY_BTN}>−</button>
-                    <input
-                      value={item.quantity}
-                      onChange={e => updateItemQty(idx, e.target.value.replace(/[^\d]/g, ''))}
-                      style={{ width: 46, textAlign: 'center', padding: '7px 4px' }}
-                    />
-                    <button type="button" onClick={() => updateItemQty(idx, String((parseInt(item.quantity) || 1) + 1))} style={QTY_BTN}>＋</button>
-                  </div>
-                </div>
-                {c.charge && (
-                  <div style={{ flex: '1 1 140px', fontSize: 12, color: 'var(--tx3)' }}>
-                    <div>Unit: {fmt(c.unit)}{c.taxRate ? ` · Tax ${c.taxRate}%` : ''}</div>
-                    <div style={{ fontWeight: 600, color: 'var(--tx2)' }}>Total: {fmt(c.total)}</div>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => removeItem(idx)}
-                  disabled={form.items.length <= 1}
-                  title={form.items.length <= 1 ? 'At least one item is required' : 'Remove item'}
-                  style={{ marginLeft: 'auto', background: 'var(--rdD)', color: 'var(--rd)', border: '1px solid rgba(255,87,87,.25)', borderRadius: 'var(--r)', padding: '6px 10px', fontSize: 12, cursor: form.items.length <= 1 ? 'not-allowed' : 'pointer', opacity: form.items.length <= 1 ? .5 : 1 }}
-                >
-                  Remove
-                </button>
-              </div>
-            )
-          })}
-
-          <Btn variant="ghost" size="sm" onClick={addItem} style={{ marginBottom: 18 }}>＋ Add Item</Btn>
-
-          <FRow>
-            <FG label="Discount (₹)">
-              <input type="number" min="0" max={maxDiscount} value={form.discountAmount} onChange={e => p({ discountAmount: e.target.value })} />
-            </FG>
-            <FG label="Mode of Payment *">
-              <select value={form.paymentMode} onChange={e => p({ paymentMode: e.target.value })}>
-                {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </FG>
-          </FRow>
-
-          <FG label="Payment Status">
-            <select value={form.paymentStatus} onChange={e => p({ paymentStatus: e.target.value })}>
-              {PAYMENT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </FG>
-
-          <FG label="Notes (optional)">
-            <textarea value={form.notes} onChange={e => p({ notes: e.target.value })} rows={2} placeholder="Any additional notes for this sale" style={{ resize: 'vertical' }} />
-          </FG>
-
-          <InfoBox>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--tx2)' }}><span>Tax</span><span>+ {fmt(taxTotal)}</span></div>
-              {discountAmount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--gr)' }}><span>Discount</span><span>− {fmt(discountAmount)}</span></div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 16, borderTop: '1px solid var(--brd)', paddingTop: 6, marginTop: 2 }}>
-                <span>Grand Total</span><span style={{ color: 'var(--ac)' }}>{fmt(grandTotal)}</span>
-              </div>
-            </div>
-          </InfoBox>
-        </Modal>
+          cancelText="Keep Sale"
+          confirmText="Cancel Sale"
+          confirmVariant="danger"
+          loading={cancelling}
+          onClose={() => setCancelTarget(null)}
+          onConfirm={confirmCancel}
+        />
       )}
 
       {/* ── Sale Detail Modal ── */}
