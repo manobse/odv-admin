@@ -6,6 +6,7 @@ import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, StatCard, Avatar
 
 const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN')
 const today = () => new Date().toISOString().slice(0, 10)
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 /* ══════════════════════════════ STAFF ═════════════════════════════════════ */
 export function Staff() {
@@ -117,6 +118,12 @@ export function Payroll() {
   const [payingId,   setPayingId]   = useState(null)
   const [slipLoad,   setSlipLoad]   = useState(false)
 
+  const now = new Date()
+  const [bulkOpen,   setBulkOpen]   = useState(false)
+  const [bulkMonth,  setBulkMonth]  = useState(now.getMonth())
+  const [bulkYear,   setBulkYear]   = useState(now.getFullYear())
+  const [bulkSaving, setBulkSaving] = useState(false)
+
   const [page,  setPage]  = useState(1)
   const [limit, setLimit] = useState(50)
   const { data: paidD, loading: paidLoading, reload: reloadPaid } = useAsync(
@@ -150,16 +157,24 @@ export function Payroll() {
     finally { setSlipLoad(false) }
   }
 
-  async function bulkGenerate() {
-    const month = prompt('Enter month (e.g. April 2025):')
-    if (!month) return
-    const parts = month.trim().split(' ')
-    const names = { January:'01',February:'02',March:'03',April:'04',May:'05',June:'06',July:'07',August:'08',September:'09',October:'10',November:'11',December:'12' }
-    const monthYear = `${parts[1]}-${names[parts[0]] || '01'}`
+  function openBulkGenerate() {
+    const n = new Date()
+    setBulkMonth(n.getMonth()); setBulkYear(n.getFullYear())
+    setBulkOpen(true)
+  }
+
+  async function confirmBulkGenerate() {
+    const n = new Date()
+    if (bulkYear > n.getFullYear() || (bulkYear === n.getFullYear() && bulkMonth > n.getMonth())) return
+    const month = `${MONTHS[bulkMonth]} ${bulkYear}`
+    const monthYear = `${bulkYear}-${String(bulkMonth + 1).padStart(2, '0')}`
+    setBulkSaving(true)
     try {
       const r = await payrollApi.bulkGen({ month, monthYear })
-      toast(`Generated ${r.generated} payroll records`, 'success'); reload()
+      toast(`Generated ${r.generated} payroll records`, 'success')
+      reload(); setBulkOpen(false)
     } catch (e) { toast(e.message, 'error') }
+    finally { setBulkSaving(false) }
   }
 
   const unpaidCols = [
@@ -192,7 +207,7 @@ export function Payroll() {
   return (
     <div>
       <PageHeader title="Payroll" sub="Staff salary management"
-        action={<Btn variant="ghost" size="sm" onClick={bulkGenerate}>⚡ Bulk Generate</Btn>}
+        action={<Btn variant="ghost" size="sm" onClick={openBulkGenerate}>⚡ Bulk Generate</Btn>}
       />
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))', gap:14, marginBottom:20 }}>
         <StatCard label="Pending Payroll" value={fmt(unpaid.reduce((a,b) => a+b.netPay, 0))} color="var(--amber)" />
@@ -225,6 +240,35 @@ export function Payroll() {
         <Modal title="Payslip" onClose={() => setPayslip(null)} wide
           footer={<><Btn variant="ghost" size="sm" onClick={() => setPayslip(null)}>Close</Btn><Btn size="sm" onClick={() => window.print()}>🖨 Print</Btn></>}>
           <PayslipView payroll={payslip.data} club={payslip.club} />
+        </Modal>
+      )}
+
+      {bulkOpen && (
+        <Modal title="Bulk Generate Payroll" onClose={() => setBulkOpen(false)}
+          footer={<>
+            <Btn variant="ghost" size="sm" onClick={() => setBulkOpen(false)}>Cancel</Btn>
+            <Btn size="sm" loading={bulkSaving}
+              disabled={bulkYear === now.getFullYear() && bulkMonth > now.getMonth()}
+              onClick={confirmBulkGenerate}>Generate</Btn>
+          </>}>
+          <FRow>
+            <FG label="Month">
+              <select value={bulkMonth} onChange={e => setBulkMonth(+e.target.value)}>
+                {MONTHS.map((m, i) => (
+                  <option key={m} value={i} disabled={bulkYear === now.getFullYear() && i > now.getMonth()}>{m}</option>
+                ))}
+              </select>
+            </FG>
+            <FG label="Year">
+              <select value={bulkYear} onChange={e => {
+                const y = +e.target.value
+                setBulkYear(y)
+                if (y === now.getFullYear() && bulkMonth > now.getMonth()) setBulkMonth(now.getMonth())
+              }}>
+                {Array.from({ length: 6 }, (_, i) => now.getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </FG>
+          </FRow>
         </Modal>
       )}
     </div>
