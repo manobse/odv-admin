@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { formatDate, formatDateTime } from '../helpers'
 import { salesApi, chargesApi, playersApi, sportsApi } from '../api/client'
-import { Btn, Badge, Tbl, Modal, FG, FRow, PageHeader, InfoBox, Pagination, ErrMsg } from '../components/ui'
+import { Btn, Badge, Tbl, Modal, FG, FRow, PageHeader, InfoBox, Pagination, ErrMsg, SearchableSelect } from '../components/ui'
 import { ChargeTypeBadge } from '../components/ChargeType'
 import { SELLABLE_CHARGE_TYPES, CHARGE_TYPE_LABEL } from '../constants/chargeTypes'
 import { PAYMENT_MODES, PAYMENT_MODE_COLOR } from '../constants/paymentModes'
@@ -267,10 +267,15 @@ export default function Sales() {
           placeholder="🔍 Search sales…"
           style={{ maxWidth: 240 }}
         />
-        <select value={filters.playerId} onChange={e => changeFilter({ playerId: e.target.value })} style={{ width: 'auto' }}>
-          <option value="">All Players</option>
-          {players.map(pl => <option key={pl._id} value={pl._id}>{pl.name} {pl.nickname ? `(${pl.nickname})` : ""}</option>)}
-        </select>
+        <SearchableSelect
+          options={players}
+          value={filters.playerId}
+          onChange={id => changeFilter({ playerId: id })}
+          getKey={pl => pl._id}
+          getLabel={pl => `${pl.name} ${pl.nickname ? `(${pl.nickname})` : ''}`.trim()}
+          placeholder="All Players"
+          style={{ width: 220 }}
+        />
         <select value={filters.sportId} onChange={e => changeFilter({ sportId: e.target.value })} style={{ width: 'auto' }}>
           <option value="">All Sports</option>
           {sports.map(s => <option key={s._id} value={s._id}>{s.icon} {s.name}</option>)}
@@ -338,10 +343,15 @@ export default function Sales() {
 
           {form.customerType === 'player' ? (
             <FG label="Player *">
-              <select value={form.player} onChange={e => p({ player: e.target.value })}>
-                <option value="">Select player…</option>
-                {players.map(pl => <option key={pl._id} value={pl._id}>{pl.name} — {pl.phone}</option>)}
-              </select>
+              <SearchableSelect
+                options={players}
+                value={form.player}
+                onChange={id => p({ player: id })}
+                getKey={pl => pl._id}
+                getLabel={pl => `${pl.name} — ${pl.phone}`}
+                getSearchText={pl => `${pl.name} ${pl.nickname || ''}`.trim()}
+                placeholder="Select player…"
+              />
             </FG>
           ) : (
             <FG label="Customer Name *">

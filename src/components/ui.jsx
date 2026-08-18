@@ -2,6 +2,7 @@
 // ui.jsx  —  All shared UI components.
 // Pure inline styles only. Zero external dependencies. Dark/light via CSS vars.
 // ─────────────────────────────────────────────────────────────────────────────
+import { useState, useRef, useEffect } from 'react'
 
 // ── Btn ───────────────────────────────────────────────────────────────────────
 const BTN_BASE = {
@@ -113,6 +114,92 @@ export function FG({ label, children }) {
 
 export function FRow({ children }) {
   return <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>{children}</div>
+}
+
+// ── SearchableSelect ──────────────────────────────────────────────────────────
+export function SearchableSelect({ options, value, onChange, getKey, getLabel, getSearchText, placeholder='Select…', style={} }) {
+  const [open, setOpen]   = useState(false)
+  const [query, setQuery] = useState('')
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onDocDown(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    function onKeyDown(e) { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDocDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onDocDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  const list = options || []
+  const selected = list.find(o => getKey(o) === value) || null
+  const q = query.trim().toLowerCase()
+  const filtered = !q ? list : list.filter(o => (getSearchText ? getSearchText(o) : getLabel(o)).toLowerCase().includes(q))
+
+  return (
+    <div ref={ref} style={{ position:'relative', width:'100%', ...style }}>
+      <div
+        onClick={() => { setQuery(''); setOpen(o => !o) }}
+        style={{
+          fontFamily:'var(--ff)', fontSize:14, color: selected ? 'var(--tx)' : 'var(--tx3)',
+          background:'var(--bg2)', border:'1.5px solid var(--brd2)', borderRadius:'var(--r)',
+          padding:'10px 14px', cursor:'pointer', userSelect:'none',
+          display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, width:'100%',
+          ...(open ? { borderColor:'var(--ac)', boxShadow:'0 0 0 3px var(--acD)' } : {}),
+        }}
+      >
+        <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          {selected ? getLabel(selected) : placeholder}
+        </span>
+        <span style={{ fontSize:11, color:'var(--tx3)', flexShrink:0 }}>▾</span>
+      </div>
+
+      {open && (
+        <div style={{
+          position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:20,
+          background:'var(--surf)', border:'1px solid var(--brd2)', borderRadius:'var(--r)',
+          boxShadow:'var(--sh)', maxHeight:280, display:'flex', flexDirection:'column',
+        }}>
+          <div style={{ padding:8, borderBottom:'1px solid var(--brd)' }}>
+            <input
+              autoFocus
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search…"
+              style={{ width:'100%' }}
+            />
+          </div>
+          <div style={{ overflowY:'auto' }}>
+            <div
+              onClick={() => { onChange(''); setOpen(false) }}
+              style={{ padding:'9px 14px', fontSize:14, color:'var(--tx3)', cursor:'pointer', fontStyle:'italic' }}
+            >
+              {placeholder}
+            </div>
+            {filtered.length === 0 && (
+              <div style={{ padding:'12px 14px', fontSize:13, color:'var(--tx3)' }}>No options found</div>
+            )}
+            {filtered.map(o => (
+              <div
+                key={getKey(o)}
+                onClick={() => { onChange(getKey(o)); setOpen(false) }}
+                style={{
+                  padding:'9px 14px', fontSize:14, cursor:'pointer',
+                  background: getKey(o) === value ? 'var(--acD)' : 'transparent',
+                  color: getKey(o) === value ? 'var(--ac)' : 'var(--tx)',
+                }}
+              >
+                {getLabel(o)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Toggle ────────────────────────────────────────────────────────────────────

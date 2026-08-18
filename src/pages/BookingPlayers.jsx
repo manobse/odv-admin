@@ -3,7 +3,7 @@ import { useAsync } from '../hooks/useAsync'
 import { useToast } from '../context/ToastContext'
 import { calculateAge, formatDate } from '../helpers'
 import { playersApi, bookingsApi, sportsApi, courtsApi, chargesApi } from '../api/client'
-import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, InfoBox, Avatar, Pagination, ErrMsg } from '../components/ui'
+import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, InfoBox, Avatar, Pagination, ErrMsg, SearchableSelect } from '../components/ui'
 import { PAYMENT_MODES, PAYMENT_MODE_COLOR } from '../constants/paymentModes'
 import logoImg from '../assets/logo.png'
 
@@ -433,10 +433,15 @@ export function Bookings() {
       {error && <ErrMsg msg={error} />}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 18, alignItems: 'flex-end' }}>
-        <select value={filters.playerId} onChange={e => changeFilter({ playerId: e.target.value })} style={{ width: 'auto' }}>
-          <option value="">All Players</option>
-          {players.map(pl => <option key={pl._id} value={pl._id}>{pl.name} {pl.nickname ? `(${pl.nickname})` : ""}</option>)}
-        </select>
+        <SearchableSelect
+          options={players}
+          value={filters.playerId}
+          onChange={id => changeFilter({ playerId: id })}
+          getKey={pl => pl._id}
+          getLabel={pl => `${pl.name} ${pl.nickname ? `(${pl.nickname})` : ''}`.trim()}
+          placeholder="All Players"
+          style={{ width: 220 }}
+        />
         <select value={filters.sportId} onChange={e => changeFilter({ sportId: e.target.value })} style={{ width: 'auto' }}>
           <option value="">All Sports</option>
           {sports.map(s => <option key={s._id} value={s._id}>{s.icon} {s.name}</option>)}
@@ -497,10 +502,15 @@ export function Bookings() {
           }
         >
           <FG label="Player *">
-            <select value={form.player} onChange={e => p({ player: e.target.value })}>
-              <option value="">Select player…</option>
-              {players.map(pl => <option key={pl._id} value={pl._id}>{pl.name} {pl.nickname ? `(${pl.nickname})` : ""} — {pl.phone}</option>)}
-            </select>
+            <SearchableSelect
+              options={players}
+              value={form.player}
+              onChange={id => p({ player: id })}
+              getKey={pl => pl._id}
+              getLabel={pl => `${pl.name} ${pl.nickname ? `(${pl.nickname})` : ''} — ${pl.phone}`.trim()}
+              getSearchText={pl => `${pl.name} ${pl.nickname || ''}`.trim()}
+              placeholder="Select player…"
+            />
           </FG>
 
           <FRow>
