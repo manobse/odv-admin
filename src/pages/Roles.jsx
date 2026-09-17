@@ -10,6 +10,7 @@ const ALL_PERMS = [
   { key:'charges',    label:'Charges & Pricing',    icon:'⚡' },
   { key:'taxes',      label:'Tax Management',       icon:'📋' },
   { key:'bookings',   label:'Slot Booking',         icon:'📅' },
+  { key:'attendance', label:'Attendance',           icon:'🗓' },
   { key:'sales',      label:'Sales & POS',          icon:'🛒' },
   { key:'income',     label:'Income Entry',         icon:'📈' },
   { key:'expenses',   label:'Expense Entry',        icon:'📉' },

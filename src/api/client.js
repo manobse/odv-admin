@@ -178,3 +178,14 @@ export const reportsApi = {
 export const auditApi = {
   list: p => api.get('/audit', p),
 }
+
+// ── Attendance ────────────────────────────────────────────────────────────────
+export const attendanceApi = {
+  list:      p          => api.get('/attendance', p),
+  bulk:      body        => api.post('/attendance/bulk', body),
+  get:       id          => api.get(`/attendance/${id}`),
+  update:    (id, b)     => api.put(`/attendance/${id}`, b),
+  del:       id          => api.del(`/attendance/${id}`),
+  summary:   p           => api.get('/attendance/summary', p),
+  forPlayer: (playerId, p) => api.get(`/players/${playerId}/attendance`, p),
+}

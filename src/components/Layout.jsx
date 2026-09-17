@@ -11,6 +11,7 @@ const NAV = [
   { to:'/taxes',      label:'Taxes',         icon:'📋', sec:null },
   { to:'/players',    label:'Players',       icon:'👤', sec:'Operations' },
   { to:'/bookings',   label:'Bookings',      icon:'📅', sec:null },
+  { to:'/attendance', label:'Attendance',    icon:'🗓', sec:null, perm:'attendance' },
   { to:'/sales',      label:'Sales',         icon:'🛒', sec:null, perm:'sales' },
   { to:'/income',     label:'Income',        icon:'📈', sec:'Finance' },
   { to:'/expenses',   label:'Expenses',      icon:'📉', sec:null },

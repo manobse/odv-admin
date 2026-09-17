@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useAsync } from '../hooks/useAsync'
 import { useToast } from '../context/ToastContext'
+import { useAuth } from '../context/AuthContext'
 import { calculateAge, formatDate } from '../helpers'
 import { playersApi, bookingsApi, sportsApi, courtsApi, chargesApi } from '../api/client'
 import { Btn, Badge, Tbl, Modal, FG, FRow, Spinner, PageHeader, InfoBox, Avatar, Pagination, ErrMsg, SearchableSelect } from '../components/ui'
+import { PlayerAttendanceHistoryModal } from '../components/PlayerAttendanceHistoryModal'
 import { PAYMENT_MODES, PAYMENT_MODE_COLOR } from '../constants/paymentModes'
 import logoImg from '../assets/logo.png'
 
@@ -30,6 +32,9 @@ const EMPTY_PLAYER = {
 /* ══════════════════════════════ PLAYERS ═══════════════════════════════════ */
 export function Players() {
   const toast = useToast()
+  const { hasPerm } = useAuth()
+  const canViewAttendance = hasPerm('attendance')
+  const [historyPlayer, setHistoryPlayer] = useState(null)
   const [search, setSearch] = useState('')
   const [page,   setPage]   = useState(1)
   const [limit,  setLimit]  = useState(50)
@@ -121,7 +126,14 @@ export function Players() {
       },
     },
     // { key:'status',  label:'Status',  render: r => <Badge variant={r.active !== false ? 'green' : 'red'}>{r.active !== false ? 'Active' : 'Inactive'}</Badge> },
-    { key:'actions', label:'',        render: r => <Btn variant="ghost" size="xs" onClick={() => openEdit(r)}>Edit</Btn> },
+    {
+      key: 'actions', label: '', render: r => (
+        <div style={{ display:'flex', gap:6 }}>
+          <Btn variant="ghost" size="xs" onClick={() => openEdit(r)}>Edit</Btn>
+          {canViewAttendance && <Btn variant="ghost" size="xs" onClick={() => setHistoryPlayer(r)}>Attendance</Btn>}
+        </div>
+      ),
+    },
   ]
 
   return (
@@ -276,6 +288,10 @@ export function Players() {
             </FG>
           )}
         </Modal>
+      )}
+
+      {historyPlayer && (
+        <PlayerAttendanceHistoryModal player={historyPlayer} onClose={() => setHistoryPlayer(null)} />
       )}
     </div>
   )
